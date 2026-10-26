@@ -22,20 +22,22 @@ namespace VoidConverter.Core
 
         public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;
 
+        /// <summary>
+        /// How many spacing rules had to be dropped to lay out the last generated board (see GridLayout.Layout.Relaxation).
+        /// 0 is the normal case.
+        /// </summary>
+        public int LastRelaxation { get; private set; }
+
         public void Generate(GridSettings settings, Random rng)
         {
-            float total = settings.MonsterWeight + settings.GoldWeight + settings.HealWeight + settings.VoidWeight;
+            var layout = GridLayout.Build(Width, Height, settings, rng);
+            LastRelaxation = layout.Relaxation;
+
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    float roll = (float)rng.NextDouble() * total;
-                    CellType type;
-                    if (roll < settings.MonsterWeight) type = CellType.Monster;
-                    else if (roll < settings.MonsterWeight + settings.GoldWeight) type = CellType.Gold;
-                    else if (roll < settings.MonsterWeight + settings.GoldWeight + settings.HealWeight) type = CellType.Heal;
-                    else type = CellType.Void;
-
+                    var type = layout.Types[x, y];
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
                     cells[x, y] = new Cell { Type = type, Used = false, Power = power };
                 }
@@ -159,10 +161,21 @@ namespace VoidConverter.Core
 
     public struct GridSettings
     {
+        // Cell counts: an exact number of void cells, a minimum for each other type, and the leftover cells
+        // split among monster/gold/heal by these weights.
+        public int VoidCount;
+        public int MonsterMin;
+        public int GoldMin;
+        public int HealMin;
         public float MonsterWeight;
         public float GoldWeight;
         public float HealWeight;
-        public float VoidWeight;
+        // Spacing. VoidMinSpacing is a Chebyshev distance (2 = void cells may not even touch diagonally).
+        // RewardMinSpacing is a Manhattan distance between any two reward cells (2 = never edge to edge).
+        // MonsterMaxCluster caps the largest group of edge-connected monsters (0 = no cap). 1 disables a spacing rule.
+        public int VoidMinSpacing;
+        public int RewardMinSpacing;
+        public int MonsterMaxCluster;
         public int MonsterPowerMin;
         public int MonsterPowerMax;
         public int VoidPowerMin;

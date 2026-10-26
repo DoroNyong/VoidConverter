@@ -16,11 +16,32 @@ MonoBehaviour:
   gridHeight: 5
   cellSize: 1
   cellGap: 0.06
+  voidCount: 5
+  monsterMin: 10
+  goldMin: 2
+  healMin: 1
   monsterWeight: 5
-  rewardWeight: 2
-  voidWeight: 2
+  goldWeight: 1
+  healWeight: 1
+  voidMinSpacing: 2
+  rewardMinSpacing: 2
+  monsterMaxCluster: 8
   monsterPowerMin: 3
   monsterPowerMax: 9
+  playerMaxHp: 30
+  playerAttackMin: 5
+  playerAttackMax: 12
+  maxCorruption: 10
+  voidPowerMin: 3
+  voidPowerMax: 9
+  voidPowerPerCorruption: 0.5
+  goldPerMonsterPower: 1
+  goldCellReward: 2
+  healCellAmount: 2
+  maxPlacements: 6
+  maxRounds: 5
+  minPlacementsToEnd: 3
+  corruptionDecayPerRound: 2
   handSize: 3
   blockWeight2: 4
   blockWeight3: 4
