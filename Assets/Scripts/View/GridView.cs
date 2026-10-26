@@ -11,10 +11,11 @@ namespace VoidConverter.View
         static readonly Color MonsterColor = new Color(0.85f, 0.25f, 0.25f);
         static readonly Color RewardColor = new Color(0.3f, 0.75f, 0.35f);
         static readonly Color VoidColor = new Color(0.55f, 0.3f, 0.85f);
+        static readonly Color VoidPowerColor = new Color(1f, 1f, 1f, 0.32f);
         const float UsedDim = 0.3f;
 
         const float CameraMargin = 0.8f;
-        const float HudSpace = 1.5f;
+        const float HudSpace = 2.1f;
         const float HandGapBelowGrid = 0.6f;
 
         GameController controller;
@@ -84,6 +85,11 @@ namespace VoidConverter.View
                     {
                         TextUtil.AddText(transform, "Power", center, cell.Power.ToString(), 64, 0.07f, Color.white, 10);
                     }
+                    // Every void cell shows, faintly, the same power: the monster it would spawn. It re-rolls after every placement.
+                    else if (cell.Type == CellType.Void)
+                    {
+                        TextUtil.AddText(transform, "Void Power", center, grid.VoidPower.ToString(), 64, 0.07f, VoidPowerColor, 10);
+                    }
                 }
             }
         }
@@ -102,7 +108,10 @@ namespace VoidConverter.View
 
             float top = gridHalfHeight + HudSpace;
             float bottom = gridHalfHeight + HandGapBelowGrid + config.handSlotSize + CameraMargin;
-            float halfWidth = Mathf.Max(gridHalfWidth, handWidth * 0.5f) + CameraMargin;
+            // Room on the right for the odds panel shown while a block is dragged; keep the board centered by
+            // reserving the same room on the left.
+            float panelReach = gridHalfWidth + HandView.SidePanelGap + HandView.SidePanelWidth;
+            float halfWidth = Mathf.Max(panelReach, handWidth * 0.5f) + 0.3f;
 
             // orthographicSize is the vertical half-extent, so widen it when the view is narrower than the content.
             cam.orthographicSize = Mathf.Max((top + bottom) * 0.5f, halfWidth / cam.aspect);

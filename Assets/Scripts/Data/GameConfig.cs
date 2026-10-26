@@ -25,6 +25,17 @@ namespace VoidConverter.Data
         public int playerAttackMin = 4;
         public int playerAttackMax = 8;
 
+        [Header("Void")]
+        [Tooltip("Corruption cap. Monster chance of a void cell = corruption / this.")]
+        public int maxCorruption = 10;
+        [Tooltip("Base range of the monster power a void cell would spawn.")]
+        public int voidPowerMin = 3;
+        public int voidPowerMax = 9;
+        [Tooltip("The void power range shifts up by floor(corruption * this).")]
+        public float voidPowerPerCorruption = 0.5f;
+        [Tooltip("HP restored by each reward cell, and by each void cell that turned out to be a reward.")]
+        public int rewardHeal = 2;
+
         [Header("Round")]
         [Tooltip("How many blocks the player may place in one round.")]
         public int maxPlacements = 6;
@@ -50,9 +61,19 @@ namespace VoidConverter.Data
             VoidWeight = voidWeight,
             MonsterPowerMin = monsterPowerMin,
             MonsterPowerMax = monsterPowerMax,
+            VoidPowerMin = voidPowerMin,
+            VoidPowerMax = voidPowerMax,
         };
 
-        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax);
+        public VoidSettings ToVoidSettings() => new VoidSettings
+        {
+            PowerMin = voidPowerMin,
+            PowerMax = voidPowerMax,
+            PowerPerCorruption = voidPowerPerCorruption,
+            RewardHeal = rewardHeal,
+        };
+
+        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);
 
         public BlockSettings ToBlockSettings() => new BlockSettings
         {

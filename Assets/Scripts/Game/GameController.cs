@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidConverter.Core;
@@ -21,7 +22,7 @@ namespace VoidConverter.Game
         public int MaxPlacements => config.maxPlacements;
         public bool OutOfPlacements => PlacementsUsed >= MaxPlacements;
 
-        /// <summary>One-line summary of what the last placement did, shown in the HUD.</summary>
+        /// <summary>Summary of what the last placement did, shown in the HUD.</summary>
         public string Message { get; private set; } = "";
 
         /// <summary>Raised after the board, hand or player changed. Views must re-read state, never cache it.</summary>
@@ -54,7 +55,12 @@ namespace VoidConverter.Game
             Changed?.Invoke();
         }
 
-        /// <summary>Places the selected block with its lower-left corner at the given cell.</summary>
+        /// <summary>
+        /// Places the selected block with its lower-left corner at the given cell. In order:
+        /// void cells decide monster or reward (using the corruption from before this block), every monster is
+        /// summed into one contest, corruption rises, rewards heal if the player survived, and the shared void
+        /// power is re-rolled.
+        /// </summary>
         public bool TryPlace(int originX, int originY)
         {
             if (Player.IsDead || OutOfPlacements) return false;
@@ -65,20 +71,55 @@ namespace VoidConverter.Game
             var result = Grid.Place(cells, originX, originY);
             if (result == null) return false;
 
-            // Every monster the block covers is summed into one contest against the player's rolled attack.
-            int monsters = 0, totalPower = 0;
-            foreach (var activated in result.Activated)
+            var voidSettings = config.ToVoidSettings();
+            float monsterChance = VoidRules.MonsterChance(Player);
+
+            int totalPower = 0, monsters = 0, rewards = 0, voidCells = 0, voidMonsters = 0, voidRewards = 0;
+            foreach (var cell in result.Activated)
             {
-                if (activated.Type != CellType.Monster) continue;
-                monsters++;
-                totalPower += activated.Power;
+                switch (cell.Type)
+                {
+                    case CellType.Monster:
+                        monsters++;
+                        totalPower += cell.Power;
+                        break;
+                    case CellType.Reward:
+                        rewards++;
+                        break;
+                    case CellType.Void:
+                        voidCells++;
+                        if (rng.NextDouble() < monsterChance)
+                        {
+                            voidMonsters++;
+                            totalPower += cell.Power;
+                        }
+                        else
+                        {
+                            voidRewards++;
+                        }
+                        break;
+                }
             }
-            FightResult? fight = monsters > 0 ? Combat.Fight(Player, totalPower, rng) : (FightResult?)null;
+
+            Player.AddCorruption(voidCells);
+
+            int monstersTotal = monsters + voidMonsters;
+            FightResult? fight = monstersTotal > 0 ? Combat.Fight(Player, totalPower, rng) : (FightResult?)null;
+
+            int heal = 0;
+            if (!Player.IsDead)
+            {
+                int before = Player.Hp;
+                Player.Heal((rewards + voidRewards) * voidSettings.RewardHeal);
+                heal = Player.Hp - before;
+            }
+
+            Grid.RerollVoidPower(Player, voidSettings, rng);
 
             PlacementsUsed++;
             Hand.UseSelected();
             Hand.Fill(config.ToBlockSettings(), rng, Grid.CanPlaceAnywhere);
-            Message = Describe(result, fight, monsters);
+            Message = Describe(fight, monstersTotal, voidCells, voidMonsters, voidRewards, heal);
             Changed?.Invoke();
             return true;
         }
@@ -103,29 +144,29 @@ namespace VoidConverter.Game
             Changed?.Invoke();
         }
 
-        string Describe(PlacementResult result, FightResult? fight, int monsters)
+        string Describe(FightResult? fight, int monsters, int voidCells, int voidMonsters, int voidRewards, int heal)
         {
-            string text;
+            var lines = new List<string>();
+
             if (fight.HasValue)
             {
                 var f = fight.Value;
                 string outcome = f.Won ? "WIN" : $"LOSE -{f.Damage}";
-                text = $"ATK {f.Roll} vs {f.MonsterPower} ({monsters} monster{(monsters > 1 ? "s" : "")}): {outcome}";
+                lines.Add($"ATK {f.Roll} vs {f.MonsterPower} ({monsters} monster{(monsters > 1 ? "s" : "")}): {outcome}");
             }
             else
             {
-                int rewards = 0, voids = 0;
-                foreach (var a in result.Activated)
-                {
-                    if (a.Type == CellType.Reward) rewards++;
-                    else if (a.Type == CellType.Void) voids++;
-                }
-                text = $"Activated: reward x{rewards}, void x{voids}";
+                lines.Add("No fight");
             }
 
-            if (Player.IsDead) text += "\nDEFEATED (G: restart)";
-            else if (OutOfPlacements) text += "\nNo placements left (G: restart)";
-            return text;
+            var extras = new List<string>();
+            if (voidCells > 0) extras.Add($"Void: {voidMonsters} monster, {voidRewards} reward");
+            if (heal > 0) extras.Add($"Heal +{heal}");
+            if (extras.Count > 0) lines.Add(string.Join("   ", extras));
+
+            if (Player.IsDead) lines.Add("DEFEATED (G: restart)");
+            else if (OutOfPlacements) lines.Add("No placements left (G: restart)");
+            return string.Join("\n", lines);
         }
     }
 }

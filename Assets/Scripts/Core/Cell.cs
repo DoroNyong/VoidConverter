@@ -5,7 +5,7 @@ namespace VoidConverter.Core
         public CellType Type;
         // Monster and Reward cells lock once activated. Void cells never lock.
         public bool Used;
-        // Only meaningful for Monster cells.
+        // Monster cells only: their attack. Void cells share Grid.VoidPower instead.
         public int Power;
         // How many times a Void cell has been activated this round.
         public int ActivationCount;

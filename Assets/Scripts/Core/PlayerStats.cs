@@ -7,14 +7,19 @@ namespace VoidConverter.Core
         public int AttackMin { get; }
         public int AttackMax { get; }
 
+        /// <summary>Rises whenever void cells are activated. Higher corruption makes void cells spawn monsters.</summary>
+        public int Corruption { get; private set; }
+        public int MaxCorruption { get; }
+
         public bool IsDead => Hp <= 0;
 
-        public PlayerStats(int maxHp, int attackMin, int attackMax)
+        public PlayerStats(int maxHp, int attackMin, int attackMax, int maxCorruption)
         {
             MaxHp = maxHp;
             Hp = maxHp;
             AttackMin = attackMin;
             AttackMax = attackMax;
+            MaxCorruption = maxCorruption;
         }
 
         /// <summary>Chance (0..1) that a uniformly rolled attack is at least <paramref name="monsterPower"/>.</summary>
@@ -32,6 +37,16 @@ namespace VoidConverter.Core
         public void TakeDamage(int amount)
         {
             Hp = System.Math.Max(0, Hp - amount);
+        }
+
+        public void Heal(int amount)
+        {
+            Hp = System.Math.Min(MaxHp, Hp + amount);
+        }
+
+        public void AddCorruption(int amount)
+        {
+            Corruption = System.Math.Max(0, System.Math.Min(MaxCorruption, Corruption + amount));
         }
     }
 }

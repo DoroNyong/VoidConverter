@@ -35,17 +35,19 @@ namespace VoidConverter.Core
                     else if (roll < settings.MonsterWeight + settings.RewardWeight) type = CellType.Reward;
                     else type = CellType.Void;
 
-                    cells[x, y] = new Cell
-                    {
-                        Type = type,
-                        Used = false,
-                        Power = type == CellType.Monster
-                            ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1)
-                            : 0,
-                    };
+                    int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
+                    cells[x, y] = new Cell { Type = type, Used = false, Power = power };
                 }
             }
+
+            VoidPower = rng.Next(settings.VoidPowerMin, settings.VoidPowerMax + 1);
         }
+
+        /// <summary>
+        /// The power of the monster any void cell would spawn right now. It is one shared value, shown faintly on
+        /// every void cell, and re-rolled after every placement.
+        /// </summary>
+        public int VoidPower { get; private set; }
 
         /// <summary>
         /// A block fits when every cell is inside the grid and not already activated.
@@ -77,6 +79,26 @@ namespace VoidConverter.Core
                 if (cell.Type == CellType.Monster && !cell.Used) total += cell.Power;
             }
             return total;
+        }
+
+        /// <summary>The monster power of each void cell the block would cover (all equal to VoidPower), one entry per cell.</summary>
+        public List<int> VoidPowersUnder(Int2[] blockCells, int originX, int originY)
+        {
+            var powers = new List<int>();
+            foreach (var c in blockCells)
+            {
+                int x = originX + c.X;
+                int y = originY + c.Y;
+                if (!InBounds(x, y)) continue;
+                if (cells[x, y].Type == CellType.Void) powers.Add(VoidPower);
+            }
+            return powers;
+        }
+
+        /// <summary>Rolls a new shared void power from the player's current corruption.</summary>
+        public void RerollVoidPower(PlayerStats player, VoidSettings settings, Random rng)
+        {
+            VoidPower = VoidRules.RollPower(player, settings, rng);
         }
 
         /// <summary>True if the shape fits somewhere in at least one of its four rotations.</summary>
@@ -112,7 +134,8 @@ namespace VoidConverter.Core
                 var cell = cells[x, y];
                 if (cell.Type == CellType.Void) cell.ActivationCount++;
                 else cell.Used = true;
-                result.Activated.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = cell.Power });
+                int power = cell.Type == CellType.Void ? VoidPower : cell.Power;
+                result.Activated.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = power });
             }
             return result;
         }
@@ -125,6 +148,8 @@ namespace VoidConverter.Core
         public float VoidWeight;
         public int MonsterPowerMin;
         public int MonsterPowerMax;
+        public int VoidPowerMin;
+        public int VoidPowerMax;
     }
 
     public struct ActivatedCell

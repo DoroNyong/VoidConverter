@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidConverter.Core;
@@ -18,6 +19,9 @@ namespace VoidConverter.View
         static readonly Color GhostValidColor = new Color(0.95f, 0.9f, 0.4f, 0.65f);
         static readonly Color GhostInvalidColor = new Color(1f, 0.3f, 0.3f, 0.55f);
         const int MaxBlockCells = 4;
+        // Gap between the grid's right edge and the odds panel. GridView reserves the same room in the camera.
+        public const float SidePanelGap = 0.45f;
+        public const float SidePanelWidth = 2.8f;
 
         GameController controller;
         GameConfig config;
@@ -44,7 +48,10 @@ namespace VoidConverter.View
             {
                 ghostCells[i] = SpriteUtil.AddSquare(ghostRoot, "Ghost Cell", Vector2.zero, config.cellSize * 0.92f, GhostValidColor, 5);
             }
-            ghostInfo = TextUtil.AddText(ghostRoot, "Ghost Info", Vector2.zero, "", 64, 0.05f, Color.white, 20);
+            ghostInfo = TextUtil.AddText(ghostRoot, "Ghost Info", Vector2.zero, "", 64, 0.036f, Color.white, 20);
+            // Left-aligned so the lines read as a list and grow rightwards from the grid edge.
+            ghostInfo.anchor = TextAnchor.MiddleLeft;
+            ghostInfo.alignment = TextAlignment.Left;
             HideGhost();
 
             controller.Changed += Rebuild;
@@ -141,23 +148,33 @@ namespace VoidConverter.View
                 ghostCells[i].color = valid ? GhostValidColor : GhostInvalidColor;
             }
 
-            // The contest is the block's covered monsters summed against one attack roll, so show that total and the odds.
+            // The contest is the block's covered monsters summed against one attack roll. Covered void cells may add
+            // a monster each, so the win chance weighs every combination of their outcomes.
             if (valid)
             {
-                int total = controller.Grid.MonsterPowerUnder(cells, origin.X, origin.Y);
-                if (total > 0)
+                int fixedPower = controller.Grid.MonsterPowerUnder(cells, origin.X, origin.Y);
+                var voidPowers = controller.Grid.VoidPowersUnder(cells, origin.X, origin.Y);
+                float monsterChance = VoidRules.MonsterChance(controller.Player);
+                float win = Odds.WinChance(controller.Player, fixedPower, voidPowers, monsterChance);
+
+                if (fixedPower == 0 && voidPowers.Count == 0)
                 {
-                    float chance = controller.Player.WinChance(total);
-                    ghostInfo.text = $"Total {total}\nWin {Mathf.RoundToInt(chance * 100f)}%";
-                    ghostInfo.color = GridView.ChanceColor(chance);
+                    ghostInfo.text = "Safe";
                 }
                 else
                 {
-                    ghostInfo.text = "Safe";
-                    ghostInfo.color = GridView.ChanceColor(1f);
+                    string text = $"Total {fixedPower}";
+                    if (voidPowers.Count > 0)
+                    {
+                        // One line per possible void result: how likely it is, and the win chance if it happens.
+                        text += "\n" + DescribeOutcomes(controller.Player, fixedPower, voidPowers, monsterChance);
+                    }
+                    text += $"\nWin {Mathf.RoundToInt(win * 100f)}%";
+                    ghostInfo.text = text;
                 }
+                ghostInfo.color = GridView.ChanceColor(win);
                 // Fixed spot beside the grid, so it never covers the cells the player is judging.
-                float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + 1.0f;
+                float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + SidePanelGap;
                 ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
                 ghostInfo.gameObject.SetActive(true);
             }
@@ -165,6 +182,19 @@ namespace VoidConverter.View
             {
                 ghostInfo.gameObject.SetActive(false);
             }
+        }
+
+        static string DescribeOutcomes(PlayerStats player, int fixedPower, List<int> voidPowers, float monsterChance)
+        {
+            var lines = new List<string>();
+            foreach (var group in Odds.Breakdown(player, fixedPower, voidPowers, monsterChance))
+            {
+                string label;
+                if (voidPowers.Count == 1) label = group.Monsters == 0 ? "Reward" : "Monster";
+                else label = group.Monsters == 1 ? "1 monster" : $"{group.Monsters} monsters";
+                lines.Add($"{label} {Mathf.RoundToInt(group.Probability * 100f)}% : win {Mathf.RoundToInt(group.WinChance * 100f)}%");
+            }
+            return string.Join("\n", lines);
         }
 
         void HideGhost()
