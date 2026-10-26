@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 
 namespace VoidConverter.Core
 {
     /// <summary>The blocks currently offered to the player. Only used slots are refilled.</summary>
     public class Hand
     {
+        const int MaxRerollAttempts = 50;
+
         public int Size => Slots.Length;
         public BlockShape[] Slots { get; }
         public int[] Rotations { get; }
@@ -16,14 +19,39 @@ namespace VoidConverter.Core
             Rotations = new int[size];
         }
 
-        public void Fill(BlockSettings settings, Random rng)
+        /// <summary>
+        /// Fills empty slots. When <paramref name="canPlace"/> is given and nothing in the hand fits the board,
+        /// one of the newly drawn blocks is redrawn until something fits, so the player is never handed a dead hand
+        /// while the board still has room.
+        /// </summary>
+        public void Fill(BlockSettings settings, Random rng, Func<BlockShape, bool> canPlace = null)
         {
+            var filled = new List<int>();
             for (int i = 0; i < Slots.Length; i++)
             {
                 if (Slots[i] != null) continue;
                 Slots[i] = BlockLibrary.Pick(settings, rng);
                 Rotations[i] = 0;
+                filled.Add(i);
             }
+
+            if (canPlace == null || filled.Count == 0 || AnyPlaceable(canPlace)) return;
+
+            for (int attempt = 0; attempt < MaxRerollAttempts; attempt++)
+            {
+                int index = filled[rng.Next(filled.Count)];
+                Slots[index] = BlockLibrary.Pick(settings, rng);
+                if (canPlace(Slots[index])) return;
+            }
+        }
+
+        public bool AnyPlaceable(Func<BlockShape, bool> canPlace)
+        {
+            foreach (var shape in Slots)
+            {
+                if (shape != null && canPlace(shape)) return true;
+            }
+            return false;
         }
 
         public bool Select(int index)

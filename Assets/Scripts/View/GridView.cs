@@ -1,56 +1,81 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using VoidConverter.Core;
 using VoidConverter.Data;
+using VoidConverter.Game;
 using Grid = VoidConverter.Core.Grid;
 
 namespace VoidConverter.View
 {
     public class GridView : MonoBehaviour
     {
-        [SerializeField] GameConfig config;
-
         static readonly Color MonsterColor = new Color(0.85f, 0.25f, 0.25f);
         static readonly Color RewardColor = new Color(0.3f, 0.75f, 0.35f);
         static readonly Color VoidColor = new Color(0.55f, 0.3f, 0.85f);
+        const float UsedDim = 0.3f;
 
         const float CameraMargin = 0.8f;
         const float HandGapBelowGrid = 0.6f;
 
-        Grid grid;
-        SpriteRenderer[,] renderers;
+        GameController controller;
+        GameConfig config;
+        float fittedAspect;
 
         void Start()
         {
-            if (config == null) config = ScriptableObject.CreateInstance<GameConfig>();
+            controller = FindFirstObjectByType<GameController>();
+            config = controller.Config;
             FitCamera();
+            controller.Changed += Rebuild;
             Rebuild();
         }
 
         void Update()
         {
-            // Debug: regenerate the board.
-            if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame) Rebuild();
+            // The window can be resized at any time; keep the whole board and hand in view.
+            if (Camera.main != null && !Mathf.Approximately(Camera.main.aspect, fittedAspect)) FitCamera();
+        }
+
+        void OnDestroy()
+        {
+            if (controller != null) controller.Changed -= Rebuild;
+        }
+
+        float Step => config.cellSize + config.cellGap;
+
+        Vector2 GridOrigin(Grid grid)
+        {
+            return new Vector2(-(grid.Width - 1) * Step * 0.5f, -(grid.Height - 1) * Step * 0.5f);
+        }
+
+        /// <summary>World position of a cell's center.</summary>
+        public Vector2 CellToWorld(int x, int y)
+        {
+            return (Vector2)transform.position + GridOrigin(controller.Grid) + new Vector2(x * Step, y * Step);
+        }
+
+        /// <summary>World position to fractional cell coordinates (cell centers sit on whole numbers).</summary>
+        public Vector2 WorldToGrid(Vector3 world)
+        {
+            Vector2 local = (Vector2)(world - transform.position) - GridOrigin(controller.Grid);
+            return local / Step;
         }
 
         void Rebuild()
         {
             for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
 
-            grid = new Grid(config.gridWidth, config.gridHeight);
-            grid.Generate(config.ToGridSettings(), new System.Random());
-            renderers = new SpriteRenderer[grid.Width, grid.Height];
-
-            float step = config.cellSize + config.cellGap;
-            Vector2 origin = new Vector2(-(grid.Width - 1) * step * 0.5f, -(grid.Height - 1) * step * 0.5f);
-
+            var grid = controller.Grid;
+            Vector2 origin = GridOrigin(grid);
             for (int x = 0; x < grid.Width; x++)
             {
                 for (int y = 0; y < grid.Height; y++)
                 {
-                    renderers[x, y] = SpriteUtil.AddSquare(
-                        transform, $"Cell {x},{y}", origin + new Vector2(x * step, y * step),
-                        config.cellSize, ColorOf(grid[x, y].Type), 0);
+                    var cell = grid[x, y];
+                    Color color = ColorOf(cell.Type);
+                    if (cell.Used && cell.Type != CellType.Void) color *= UsedDim;
+                    color.a = 1f;
+                    SpriteUtil.AddSquare(transform, $"Cell {x},{y}", origin + new Vector2(x * Step, y * Step),
+                        config.cellSize, color, 0);
                 }
             }
         }
@@ -61,10 +86,10 @@ namespace VoidConverter.View
             var cam = Camera.main;
             if (cam == null) return;
             cam.orthographic = true;
+            fittedAspect = cam.aspect;
 
-            float step = config.cellSize + config.cellGap;
-            float gridHalfWidth = config.gridWidth * step * 0.5f;
-            float gridHalfHeight = config.gridHeight * step * 0.5f;
+            float gridHalfWidth = config.gridWidth * Step * 0.5f;
+            float gridHalfHeight = config.gridHeight * Step * 0.5f;
             float handWidth = config.handSize * config.handSlotSize + (config.handSize - 1) * config.handSlotGap;
 
             float top = gridHalfHeight + CameraMargin;
