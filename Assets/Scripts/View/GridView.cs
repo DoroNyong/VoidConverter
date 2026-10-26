@@ -9,7 +9,9 @@ namespace VoidConverter.View
     public class GridView : MonoBehaviour
     {
         static readonly Color MonsterColor = new Color(0.85f, 0.25f, 0.25f);
-        static readonly Color RewardColor = new Color(0.3f, 0.75f, 0.35f);
+        static readonly Color GoldColor = new Color(0.9f, 0.7f, 0.15f);
+        static readonly Color HealColor = new Color(0.3f, 0.75f, 0.35f);
+        static readonly Color RewardLabelColor = new Color(1f, 1f, 1f, 0.9f);
         static readonly Color VoidColor = new Color(0.55f, 0.3f, 0.85f);
         static readonly Color VoidPowerColor = new Color(1f, 1f, 1f, 0.32f);
         const float UsedDim = 0.3f;
@@ -85,6 +87,15 @@ namespace VoidConverter.View
                     {
                         TextUtil.AddText(transform, "Power", center, cell.Power.ToString(), 64, 0.07f, Color.white, 10);
                     }
+                    // Reward cells say what they give. Locked cells show nothing.
+                    else if (cell.Type == CellType.Gold && !cell.Used)
+                    {
+                        TextUtil.AddText(transform, "Gold Reward", center, "$" + config.goldCellReward, 64, 0.06f, RewardLabelColor, 10);
+                    }
+                    else if (cell.Type == CellType.Heal && !cell.Used)
+                    {
+                        TextUtil.AddText(transform, "Heal Amount", center, "+" + config.healCellAmount + " HP", 64, 0.045f, RewardLabelColor, 10);
+                    }
                     // Every void cell shows, faintly, the same power: the monster it would spawn. It re-rolls after every placement.
                     else if (cell.Type == CellType.Void)
                     {
@@ -131,7 +142,8 @@ namespace VoidConverter.View
             switch (type)
             {
                 case CellType.Monster: return MonsterColor;
-                case CellType.Reward: return RewardColor;
+                case CellType.Gold: return GoldColor;
+                case CellType.Heal: return HealColor;
                 default: return VoidColor;
             }
         }

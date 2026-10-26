@@ -24,7 +24,7 @@ namespace VoidConverter.Core
 
         public void Generate(GridSettings settings, Random rng)
         {
-            float total = settings.MonsterWeight + settings.RewardWeight + settings.VoidWeight;
+            float total = settings.MonsterWeight + settings.GoldWeight + settings.HealWeight + settings.VoidWeight;
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -32,7 +32,8 @@ namespace VoidConverter.Core
                     float roll = (float)rng.NextDouble() * total;
                     CellType type;
                     if (roll < settings.MonsterWeight) type = CellType.Monster;
-                    else if (roll < settings.MonsterWeight + settings.RewardWeight) type = CellType.Reward;
+                    else if (roll < settings.MonsterWeight + settings.GoldWeight) type = CellType.Gold;
+                    else if (roll < settings.MonsterWeight + settings.GoldWeight + settings.HealWeight) type = CellType.Heal;
                     else type = CellType.Void;
 
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
@@ -79,6 +80,21 @@ namespace VoidConverter.Core
                 if (cell.Type == CellType.Monster && !cell.Used) total += cell.Power;
             }
             return total;
+        }
+
+        /// <summary>How many not-yet-activated cells of the given type the block would cover.</summary>
+        public int CountUnder(Int2[] blockCells, int originX, int originY, CellType type)
+        {
+            int count = 0;
+            foreach (var c in blockCells)
+            {
+                int x = originX + c.X;
+                int y = originY + c.Y;
+                if (!InBounds(x, y)) continue;
+                var cell = cells[x, y];
+                if (cell.Type == type && !cell.Used) count++;
+            }
+            return count;
         }
 
         /// <summary>The monster power of each void cell the block would cover (all equal to VoidPower), one entry per cell.</summary>
@@ -144,7 +160,8 @@ namespace VoidConverter.Core
     public struct GridSettings
     {
         public float MonsterWeight;
-        public float RewardWeight;
+        public float GoldWeight;
+        public float HealWeight;
         public float VoidWeight;
         public int MonsterPowerMin;
         public int MonsterPowerMax;

@@ -10,8 +10,6 @@ namespace VoidConverter.Core
         public int PowerMax;
         // The range shifts up by floor(corruption * PowerPerCorruption).
         public float PowerPerCorruption;
-        // HP restored by each reward (reward cells and void cells that turned out to be rewards).
-        public int RewardHeal;
     }
 
     public static class VoidRules

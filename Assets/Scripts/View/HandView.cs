@@ -16,7 +16,8 @@ namespace VoidConverter.View
         static readonly Color SlotColor = new Color(0.12f, 0.17f, 0.28f);
         static readonly Color SlotSelectedColor = new Color(0.25f, 0.4f, 0.65f);
         static readonly Color BlockColor = new Color(0.9f, 0.85f, 0.6f);
-        static readonly Color GhostValidColor = new Color(0.95f, 0.9f, 0.4f, 0.65f);
+        // Not yellow, which is the gold cells' color.
+        static readonly Color GhostValidColor = new Color(0.7f, 0.95f, 1f, 0.7f);
         static readonly Color GhostInvalidColor = new Color(1f, 0.3f, 0.3f, 0.55f);
         const int MaxBlockCells = 4;
         // Gap between the grid's right edge and the odds panel. GridView reserves the same room in the camera.
@@ -157,13 +158,15 @@ namespace VoidConverter.View
                 float monsterChance = VoidRules.MonsterChance(controller.Player);
                 float win = Odds.WinChance(controller.Player, fixedPower, voidPowers, monsterChance);
 
+                string cellRewards = RewardLine(cells, origin);
                 if (fixedPower == 0 && voidPowers.Count == 0)
                 {
-                    ghostInfo.text = "Safe";
+                    ghostInfo.text = cellRewards.Length > 0 ? "Safe\n" + cellRewards : "Safe";
                 }
                 else
                 {
                     string text = $"Total {fixedPower}";
+                    if (cellRewards.Length > 0) text += "\n" + cellRewards;
                     if (voidPowers.Count > 0)
                     {
                         // One line per possible void result: how likely it is, and the win chance if it happens.
@@ -182,6 +185,16 @@ namespace VoidConverter.View
             {
                 ghostInfo.gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>What the gold and heal cells under the block give, when it is placed (given the player survives).</summary>
+        string RewardLine(Int2[] cells, Int2 origin)
+        {
+            int gold = controller.Grid.CountUnder(cells, origin.X, origin.Y, CellType.Gold) * config.goldCellReward;
+            int heal = controller.Grid.CountUnder(cells, origin.X, origin.Y, CellType.Heal) * config.healCellAmount;
+            if (gold == 0 && heal == 0) return "";
+            if (gold > 0 && heal > 0) return $"Cells: ${gold}  +{heal} HP";
+            return gold > 0 ? $"Cells: ${gold}" : $"Cells: +{heal} HP";
         }
 
         static string DescribeOutcomes(PlayerStats player, int fixedPower, List<int> voidPowers, float monsterChance)

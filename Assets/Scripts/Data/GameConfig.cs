@@ -13,7 +13,8 @@ namespace VoidConverter.Data
         public float cellSize = 1f;
         public float cellGap = 0.06f;
         public float monsterWeight = 5f;
-        public float rewardWeight = 2f;
+        public float goldWeight = 1f;
+        public float healWeight = 1f;
         public float voidWeight = 2f;
 
         [Header("Monsters")]
@@ -33,12 +34,24 @@ namespace VoidConverter.Data
         public int voidPowerMax = 9;
         [Tooltip("The void power range shifts up by floor(corruption * this).")]
         public float voidPowerPerCorruption = 0.5f;
-        [Tooltip("HP restored by each reward cell, and by each void cell that turned out to be a reward.")]
-        public int rewardHeal = 2;
+
+        [Header("Rewards")]
+        [Tooltip("Gold gained for beating monsters = their summed power * this (only when the block's contest is won).")]
+        public float goldPerMonsterPower = 1f;
+        [Tooltip("Gold from a gold cell, and from a void cell that turned out to be a reward.")]
+        public int goldCellReward = 2;
+        [Tooltip("HP restored by a heal cell.")]
+        public int healCellAmount = 2;
 
         [Header("Round")]
         [Tooltip("How many blocks the player may place in one round.")]
         public int maxPlacements = 6;
+        [Tooltip("The run is cleared after this many rounds.")]
+        public int maxRounds = 5;
+        [Tooltip("The round can be ended by hand once this many blocks were placed.")]
+        public int minPlacementsToEnd = 3;
+        [Tooltip("Corruption lost when a round ends.")]
+        public int corruptionDecayPerRound = 2;
 
         [Header("Blocks")]
         public int handSize = 3;
@@ -57,7 +70,8 @@ namespace VoidConverter.Data
         public GridSettings ToGridSettings() => new GridSettings
         {
             MonsterWeight = monsterWeight,
-            RewardWeight = rewardWeight,
+            GoldWeight = goldWeight,
+            HealWeight = healWeight,
             VoidWeight = voidWeight,
             MonsterPowerMin = monsterPowerMin,
             MonsterPowerMax = monsterPowerMax,
@@ -70,7 +84,6 @@ namespace VoidConverter.Data
             PowerMin = voidPowerMin,
             PowerMax = voidPowerMax,
             PowerPerCorruption = voidPowerPerCorruption,
-            RewardHeal = rewardHeal,
         };
 
         public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);

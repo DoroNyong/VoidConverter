@@ -11,6 +11,8 @@ namespace VoidConverter.Core
         public int Corruption { get; private set; }
         public int MaxCorruption { get; }
 
+        public int Gold { get; private set; }
+
         public bool IsDead => Hp <= 0;
 
         public PlayerStats(int maxHp, int attackMin, int attackMax, int maxCorruption)
@@ -47,6 +49,16 @@ namespace VoidConverter.Core
         public void AddCorruption(int amount)
         {
             Corruption = System.Math.Max(0, System.Math.Min(MaxCorruption, Corruption + amount));
+        }
+
+        public void ReduceCorruption(int amount)
+        {
+            AddCorruption(-amount);
+        }
+
+        public void AddGold(int amount)
+        {
+            Gold += System.Math.Max(0, amount);
         }
     }
 }
