@@ -10,6 +10,8 @@ namespace VoidConverter.Data
         [Header("Grid")]
         public int gridWidth = 5;
         public int gridHeight = 5;
+        public float cellSize = 1f;
+        public float cellGap = 0.06f;
         public float monsterWeight = 5f;
         public float rewardWeight = 2f;
         public float voidWeight = 2f;
@@ -18,6 +20,20 @@ namespace VoidConverter.Data
         public int monsterPowerMin = 3;
         public int monsterPowerMax = 9;
 
+        [Header("Blocks")]
+        public int handSize = 3;
+        [Tooltip("Probability weight of 2-cell blocks (split evenly among that size's shapes).")]
+        public float blockWeight2 = 4f;
+        [Tooltip("Probability weight of 3-cell blocks.")]
+        public float blockWeight3 = 4f;
+        [Tooltip("Probability weight of 4-cell blocks.")]
+        public float blockWeight4 = 2f;
+
+        [Header("Hand Layout")]
+        public float handSlotSize = 2.4f;
+        public float handSlotGap = 0.2f;
+        public float handMiniCellSize = 0.55f;
+
         public GridSettings ToGridSettings() => new GridSettings
         {
             MonsterWeight = monsterWeight,
@@ -25,6 +41,13 @@ namespace VoidConverter.Data
             VoidWeight = voidWeight,
             MonsterPowerMin = monsterPowerMin,
             MonsterPowerMax = monsterPowerMax,
+        };
+
+        public BlockSettings ToBlockSettings() => new BlockSettings
+        {
+            Size2Weight = blockWeight2,
+            Size3Weight = blockWeight3,
+            Size4Weight = blockWeight4,
         };
     }
 }
