@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace VoidConverter.Core
 {
@@ -38,25 +39,45 @@ namespace VoidConverter.Core
             new BlockShape("J4", "..X", "XXX"),
         };
 
-        public static BlockShape Pick(BlockSettings settings, Random rng)
+        /// <summary>
+        /// Draws a shape by size weight. Shapes in <paramref name="exclude"/> are skipped so a hand never shows
+        /// the same shape twice. If nothing is left to draw (or all remaining weights are zero), it falls back
+        /// to drawing without the exclusion.
+        /// </summary>
+        public static BlockShape Pick(BlockSettings settings, Random rng, IEnumerable<BlockShape> exclude = null)
+        {
+            var excluded = exclude == null ? new HashSet<BlockShape>() : new HashSet<BlockShape>(exclude);
+            var picked = PickWeighted(settings, rng, excluded);
+            return picked ?? PickWeighted(settings, rng, new HashSet<BlockShape>());
+        }
+
+        static BlockShape PickWeighted(BlockSettings settings, Random rng, HashSet<BlockShape> excluded)
         {
             var weights = new float[All.Length];
             float total = 0f;
             for (int i = 0; i < All.Length; i++)
             {
+                if (excluded.Contains(All[i])) continue;
                 int sameSize = 0;
                 foreach (var other in All) if (other.Size == All[i].Size) sameSize++;
                 weights[i] = settings.WeightOfSize(All[i].Size) / sameSize;
                 total += weights[i];
             }
+            if (total <= 0f) return null;
 
             float roll = (float)rng.NextDouble() * total;
             for (int i = 0; i < All.Length; i++)
             {
+                if (weights[i] <= 0f) continue;
                 if (roll < weights[i]) return All[i];
                 roll -= weights[i];
             }
-            return All[All.Length - 1];
+            // Floating point leftovers: return the last shape that was eligible.
+            for (int i = All.Length - 1; i >= 0; i--)
+            {
+                if (weights[i] > 0f) return All[i];
+            }
+            return null;
         }
     }
 }

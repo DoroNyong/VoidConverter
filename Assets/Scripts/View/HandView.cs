@@ -25,6 +25,7 @@ namespace VoidConverter.View
         Camera cam;
 
         bool dragging;
+        int hoveredSlot = -1;
         Transform ghostRoot;
         SpriteRenderer[] ghostCells;
 
@@ -62,18 +63,27 @@ namespace VoidConverter.View
 
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
 
+            // The block under the cursor is the one that rotates; while one is held, the held block is.
+            int hover = dragging ? -1 : SlotAt(world);
+            if (hover != hoveredSlot)
+            {
+                hoveredSlot = hover;
+                Rebuild();
+            }
+
             if (mouse.leftButton.wasPressedThisFrame)
             {
                 int slot = SlotAt(world);
                 if (slot >= 0 && controller.Hand.Select(slot))
                 {
                     dragging = true;
+                    hoveredSlot = -1;
                     Rebuild();
                 }
             }
 
             bool rotatePressed = (keyboard != null && keyboard.rKey.wasPressedThisFrame) || mouse.rightButton.wasPressedThisFrame;
-            if (rotatePressed) controller.RotateSelected();
+            if (rotatePressed) controller.RotateSlot(dragging ? controller.Hand.Selected : hoveredSlot);
 
             if (!dragging) return;
 
@@ -85,6 +95,10 @@ namespace VoidConverter.View
                 HideGhost();
                 var origin = DropOrigin(world);
                 controller.TryPlace(origin.X, origin.Y);
+                // A drop that did not place the block puts it back; it is no longer "held".
+                controller.ClearSelection();
+                hoveredSlot = SlotAt(world);
+                Rebuild();
             }
         }
 
@@ -160,8 +174,9 @@ namespace VoidConverter.View
             for (int i = 0; i < hand.Size; i++)
             {
                 Vector2 center = SlotCenter(i);
+                bool highlighted = dragging ? i == hand.Selected : i == hoveredSlot;
                 SpriteUtil.AddSquare(transform, $"Slot {i}", center, config.handSlotSize,
-                    i == hand.Selected ? SlotSelectedColor : SlotColor, -1);
+                    highlighted ? SlotSelectedColor : SlotColor, -1);
 
                 var cells = hand.CellsOf(i);
                 if (cells == null) continue;

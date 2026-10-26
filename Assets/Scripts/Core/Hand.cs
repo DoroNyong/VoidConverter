@@ -30,7 +30,8 @@ namespace VoidConverter.Core
             for (int i = 0; i < Slots.Length; i++)
             {
                 if (Slots[i] != null) continue;
-                Slots[i] = BlockLibrary.Pick(settings, rng);
+                // Slots still holds the other blocks (and nulls), so they are excluded from the draw.
+                Slots[i] = BlockLibrary.Pick(settings, rng, Slots);
                 Rotations[i] = 0;
                 filled.Add(i);
             }
@@ -40,7 +41,9 @@ namespace VoidConverter.Core
             for (int attempt = 0; attempt < MaxRerollAttempts; attempt++)
             {
                 int index = filled[rng.Next(filled.Count)];
-                Slots[index] = BlockLibrary.Pick(settings, rng);
+                // Exclude the other blocks and the one being replaced, so the redraw is both new and not a duplicate.
+                var avoid = new List<BlockShape>(Slots);
+                Slots[index] = BlockLibrary.Pick(settings, rng, avoid);
                 if (canPlace(Slots[index])) return;
             }
         }
@@ -61,10 +64,17 @@ namespace VoidConverter.Core
             return true;
         }
 
-        public void Rotate()
+        /// <summary>Rotates the block in the given slot a quarter turn clockwise. Empty slots are ignored.</summary>
+        public void Rotate(int index)
         {
-            if (Selected < 0) return;
-            Rotations[Selected] = (Rotations[Selected] + 1) % 4;
+            if (index < 0 || index >= Slots.Length || Slots[index] == null) return;
+            Rotations[index] = (Rotations[index] + 1) % 4;
+        }
+
+        /// <summary>Puts the held block back without using it. Its rotation is kept.</summary>
+        public void Deselect()
+        {
+            Selected = -1;
         }
 
         public Int2[] SelectedCells()

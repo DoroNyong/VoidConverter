@@ -64,10 +64,18 @@ namespace VoidConverter.Game
             if (Hand.Select(index)) Changed?.Invoke();
         }
 
-        public void RotateSelected()
+        public void RotateSlot(int index)
+        {
+            if (index < 0 || index >= Hand.Size || Hand.Slots[index] == null) return;
+            Hand.Rotate(index);
+            Changed?.Invoke();
+        }
+
+        /// <summary>Puts the held block back after a drop that did not place it.</summary>
+        public void ClearSelection()
         {
             if (Hand.Selected < 0) return;
-            Hand.Rotate();
+            Hand.Deselect();
             Changed?.Invoke();
         }
 
