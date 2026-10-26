@@ -14,6 +14,7 @@ namespace VoidConverter.View
         const float UsedDim = 0.3f;
 
         const float CameraMargin = 0.8f;
+        const float HudSpace = 1.5f;
         const float HandGapBelowGrid = 0.6f;
 
         GameController controller;
@@ -74,8 +75,15 @@ namespace VoidConverter.View
                     Color color = ColorOf(cell.Type);
                     if (cell.Used && cell.Type != CellType.Void) color *= UsedDim;
                     color.a = 1f;
-                    SpriteUtil.AddSquare(transform, $"Cell {x},{y}", origin + new Vector2(x * Step, y * Step),
-                        config.cellSize, color, 0);
+                    Vector2 center = origin + new Vector2(x * Step, y * Step);
+                    SpriteUtil.AddSquare(transform, $"Cell {x},{y}", center, config.cellSize, color, 0);
+
+                    // Monster power is public. Locked cells show nothing. The odds depend on which monsters a block
+                    // covers together, so they are shown on the drag ghost rather than per cell.
+                    if (cell.Type == CellType.Monster && !cell.Used)
+                    {
+                        TextUtil.AddText(transform, "Power", center, cell.Power.ToString(), 64, 0.07f, Color.white, 10);
+                    }
                 }
             }
         }
@@ -92,7 +100,7 @@ namespace VoidConverter.View
             float gridHalfHeight = config.gridHeight * Step * 0.5f;
             float handWidth = config.handSize * config.handSlotSize + (config.handSize - 1) * config.handSlotGap;
 
-            float top = gridHalfHeight + CameraMargin;
+            float top = gridHalfHeight + HudSpace;
             float bottom = gridHalfHeight + HandGapBelowGrid + config.handSlotSize + CameraMargin;
             float halfWidth = Mathf.Max(gridHalfWidth, handWidth * 0.5f) + CameraMargin;
 
@@ -100,6 +108,13 @@ namespace VoidConverter.View
             cam.orthographicSize = Mathf.Max((top + bottom) * 0.5f, halfWidth / cam.aspect);
             var pos = cam.transform.position;
             cam.transform.position = new Vector3(0f, (top - bottom) * 0.5f, pos.z);
+        }
+
+        public static Color ChanceColor(float chance)
+        {
+            if (chance >= 0.7f) return new Color(0.85f, 1f, 0.85f);
+            if (chance >= 0.4f) return new Color(1f, 0.95f, 0.6f);
+            return new Color(1f, 0.8f, 0.7f);
         }
 
         static Color ColorOf(CellType type)

@@ -28,6 +28,7 @@ namespace VoidConverter.View
         int hoveredSlot = -1;
         Transform ghostRoot;
         SpriteRenderer[] ghostCells;
+        TextMesh ghostInfo;
 
         void Start()
         {
@@ -43,6 +44,7 @@ namespace VoidConverter.View
             {
                 ghostCells[i] = SpriteUtil.AddSquare(ghostRoot, "Ghost Cell", Vector2.zero, config.cellSize * 0.92f, GhostValidColor, 5);
             }
+            ghostInfo = TextUtil.AddText(ghostRoot, "Ghost Info", Vector2.zero, "", 64, 0.05f, Color.white, 20);
             HideGhost();
 
             controller.Changed += Rebuild;
@@ -138,11 +140,37 @@ namespace VoidConverter.View
                 ghostCells[i].transform.position = new Vector3(pos.x, pos.y, 0f);
                 ghostCells[i].color = valid ? GhostValidColor : GhostInvalidColor;
             }
+
+            // The contest is the block's covered monsters summed against one attack roll, so show that total and the odds.
+            if (valid)
+            {
+                int total = controller.Grid.MonsterPowerUnder(cells, origin.X, origin.Y);
+                if (total > 0)
+                {
+                    float chance = controller.Player.WinChance(total);
+                    ghostInfo.text = $"Total {total}\nWin {Mathf.RoundToInt(chance * 100f)}%";
+                    ghostInfo.color = GridView.ChanceColor(chance);
+                }
+                else
+                {
+                    ghostInfo.text = "Safe";
+                    ghostInfo.color = GridView.ChanceColor(1f);
+                }
+                // Fixed spot beside the grid, so it never covers the cells the player is judging.
+                float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + 1.0f;
+                ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
+                ghostInfo.gameObject.SetActive(true);
+            }
+            else
+            {
+                ghostInfo.gameObject.SetActive(false);
+            }
         }
 
         void HideGhost()
         {
             foreach (var cell in ghostCells) cell.gameObject.SetActive(false);
+            ghostInfo.gameObject.SetActive(false);
         }
 
         Vector2 SlotCenter(int index)

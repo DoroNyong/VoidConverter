@@ -20,6 +20,15 @@ namespace VoidConverter.Data
         public int monsterPowerMin = 3;
         public int monsterPowerMax = 9;
 
+        [Header("Player")]
+        public int playerMaxHp = 30;
+        public int playerAttackMin = 4;
+        public int playerAttackMax = 8;
+
+        [Header("Round")]
+        [Tooltip("How many blocks the player may place in one round.")]
+        public int maxPlacements = 6;
+
         [Header("Blocks")]
         public int handSize = 3;
         [Tooltip("Probability weight of 2-cell blocks (split evenly among that size's shapes).")]
@@ -42,6 +51,8 @@ namespace VoidConverter.Data
             MonsterPowerMin = monsterPowerMin,
             MonsterPowerMax = monsterPowerMax,
         };
+
+        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax);
 
         public BlockSettings ToBlockSettings() => new BlockSettings
         {

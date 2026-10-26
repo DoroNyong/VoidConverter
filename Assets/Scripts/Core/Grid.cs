@@ -64,6 +64,21 @@ namespace VoidConverter.Core
             return true;
         }
 
+        /// <summary>Total power of the monster cells (not yet activated) that the block would cover.</summary>
+        public int MonsterPowerUnder(Int2[] blockCells, int originX, int originY)
+        {
+            int total = 0;
+            foreach (var c in blockCells)
+            {
+                int x = originX + c.X;
+                int y = originY + c.Y;
+                if (!InBounds(x, y)) continue;
+                var cell = cells[x, y];
+                if (cell.Type == CellType.Monster && !cell.Used) total += cell.Power;
+            }
+            return total;
+        }
+
         /// <summary>True if the shape fits somewhere in at least one of its four rotations.</summary>
         public bool CanPlaceAnywhere(BlockShape shape)
         {
