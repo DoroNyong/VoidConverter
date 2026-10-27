@@ -113,6 +113,42 @@ namespace VoidConverter.Core
             return powers;
         }
 
+        /// <summary>
+        /// Boss stage: turns up to <paramref name="count"/> randomly chosen monster cells (not yet activated) into
+        /// strong monsters with the given power.
+        /// </summary>
+        public void PlaceStrongMonsters(int count, int power, Random rng)
+        {
+            var monsters = new List<Cell>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (cells[x, y].Type == CellType.Monster && !cells[x, y].Used) monsters.Add(cells[x, y]);
+                }
+            }
+            for (int i = 0; i < count && monsters.Count > 0; i++)
+            {
+                int pick = rng.Next(monsters.Count);
+                monsters[pick].Power = power;
+                monsters.RemoveAt(pick);
+            }
+        }
+
+        /// <summary>Boss stage: every monster cell that is not yet activated gets stronger by this amount.</summary>
+        public void GrowMonsters(int amount)
+        {
+            if (amount == 0) return;
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var cell = cells[x, y];
+                    if (cell.Type == CellType.Monster && !cell.Used) cell.Power += amount;
+                }
+            }
+        }
+
         /// <summary>Rolls a new shared void power from the player's current corruption.</summary>
         public void RerollVoidPower(PlayerStats player, VoidSettings settings, Random rng)
         {

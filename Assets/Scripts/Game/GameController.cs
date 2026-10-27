@@ -44,7 +44,15 @@ namespace VoidConverter.Game
         public bool OutOfPlacements => PlacementsUsed >= MaxPlacements;
 
         /// <summary>The round can be ended by hand after enough blocks were placed.</summary>
-        public bool CanEndRound => Phase == RunPhase.Playing && PlacementsUsed >= MinPlacementsToEnd;
+        public bool CanEndRound => Phase == RunPhase.Playing && !IsBossStage && PlacementsUsed >= MinPlacementsToEnd;
+
+        /// <summary>True while the boss stage's board is being played.</summary>
+        public bool IsBossStage => Phase == RunPhase.Playing && CurrentStage == StageType.Boss;
+        /// <summary>Blocks the player has to place in the boss stage before the boss can be defeated.</summary>
+        public int BossHoldTarget => config.bossHoldPlacements;
+        /// <summary>The boss can be defeated: enough blocks were placed (or nothing more fits).</summary>
+        public bool BossReady => IsBossStage && !Player.IsDead &&
+            (PlacementsUsed >= BossHoldTarget || OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere));
 
         /// <summary>Summary of what the last action did, shown in the HUD.</summary>
         public string Message { get; private set; } = "";
@@ -186,6 +194,7 @@ namespace VoidConverter.Game
         {
             Grid = new Grid(config.gridWidth, config.gridHeight);
             Grid.Generate(config.ToGridSettings(), rng);
+            if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
             // The first void power comes from the current corruption, which carries over between rounds.
             Grid.RerollVoidPower(Player, config.ToVoidSettings(), rng);
             Hand = new Hand(config.handSize);
@@ -212,6 +221,11 @@ namespace VoidConverter.Game
                 NewRun();
                 return;
             }
+            if (IsBossStage)
+            {
+                DefeatBoss();
+                return;
+            }
             if (!CanEndRound) return;
 
             Message = $"Stage {Stage} ended early";
@@ -232,8 +246,11 @@ namespace VoidConverter.Game
         {
             if (Stage >= StageCount)
             {
-                Phase = RunPhase.Cleared;
-                Message += (Message.Length > 0 ? "\n" : "") + $"CLEARED! Gold {Player.Gold}   (Space: restart)";
+                Transition(() =>
+                {
+                    Phase = RunPhase.Cleared;
+                    Message += (Message.Length > 0 ? "\n" : "") + $"CLEARED! Gold {Player.Gold}   (Space: restart)";
+                }, delay);
                 return;
             }
 
@@ -243,6 +260,18 @@ namespace VoidConverter.Game
                 Stage++;
                 EnterStage();
             }, delay);
+        }
+
+        /// <summary>
+        /// Boss stage: defeats the boss once enough blocks were placed. The run is cleared behind a screen transition.
+        /// Returns false if the boss cannot be defeated yet.
+        /// </summary>
+        public bool DefeatBoss()
+        {
+            if (InputLocked || !BossReady) return false;
+            Message = "Boss defeated!";
+            AdvanceStage(0f, false);
+            return true;
         }
 
         /// <summary>Takes the choice at this position in the current event (once). Returns whether it was applied.</summary>
@@ -345,6 +374,8 @@ namespace VoidConverter.Game
             }
 
             Grid.RerollVoidPower(Player, voidSettings, rng);
+            // The longer the player takes to hold out in the boss stage, the stronger the monsters left on the board.
+            if (CurrentStage == StageType.Boss && !Player.IsDead) Grid.GrowMonsters(config.bossMonsterGrowth);
 
             PlacementsUsed++;
             Hand.UseSelected();
@@ -356,6 +387,11 @@ namespace VoidConverter.Game
             {
                 Phase = RunPhase.Defeated;
                 Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
+            }
+            else if (CurrentStage == StageType.Boss)
+            {
+                // The boss stage has no round end: it ends when the player defeats the boss.
+                if (BossReady) Message += "\nThe boss is open! Defeat it.";
             }
             else if (OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere))
             {

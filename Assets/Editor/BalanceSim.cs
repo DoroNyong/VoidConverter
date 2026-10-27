@@ -79,6 +79,12 @@ namespace VoidConverter.EditorTools
                         gc.PressMainButton();
                         continue;
                     }
+                    // The boss stage ends with a click once the boss is open.
+                    if (gc.BossReady)
+                    {
+                        gc.PressMainButton();
+                        continue;
+                    }
                     if (!PlaceOne(gc, cfg, bot, rng))
                     {
                         if (gc.CanEndRound) gc.PressMainButton();

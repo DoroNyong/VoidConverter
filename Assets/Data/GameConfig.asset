@@ -43,6 +43,10 @@ MonoBehaviour:
   stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
+  bossHoldPlacements: 5
+  bossMonsterGrowth: 1
+  bossStrongMonsterCount: 2
+  bossStrongMonsterPower: 15
   fadeSeconds: 0.3
   fadeDelaySeconds: 0.5
   items:

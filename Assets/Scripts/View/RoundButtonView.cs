@@ -78,6 +78,12 @@ namespace VoidConverter.View
                 label.text = "Restart";
                 background.color = RestartColor;
             }
+            else if (controller.IsBossStage)
+            {
+                bool ready = controller.BossReady;
+                label.text = ready ? "Defeat\nBoss" : $"Hold out\n({controller.PlacementsUsed}/{controller.BossHoldTarget})";
+                background.color = ready ? RestartColor : DisabledColor;
+            }
             else if (controller.CanEndRound)
             {
                 label.text = "End Round";

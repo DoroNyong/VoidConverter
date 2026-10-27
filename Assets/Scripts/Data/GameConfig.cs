@@ -133,6 +133,15 @@ namespace VoidConverter.Data
         [Tooltip("Corruption lost when a round ends.")]
         public int corruptionDecayPerRound = 2;
 
+        [Header("Boss (MVP, to be redesigned)")]
+        [Tooltip("The boss can be defeated once this many blocks were placed in the boss stage.")]
+        public int bossHoldPlacements = 5;
+        [Tooltip("Every monster still on the board gets this much stronger after each block placed in the boss stage.")]
+        public int bossMonsterGrowth = 1;
+        [Tooltip("This many monsters on the boss board are replaced by strong ones.")]
+        public int bossStrongMonsterCount = 2;
+        public int bossStrongMonsterPower = 15;
+
         [Header("Screen Transition")]
         [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
         public float fadeSeconds = 0.3f;
