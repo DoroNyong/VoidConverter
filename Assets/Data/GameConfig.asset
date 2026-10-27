@@ -40,7 +40,7 @@ MonoBehaviour:
   goldCellReward: 2
   healCellAmount: 2
   maxPlacements: 6
-  maxRounds: 5
+  stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
   items:
@@ -52,6 +52,16 @@ MonoBehaviour:
     displayName: Life Charm
     attackBonus: 0
     maxHpBonus: 5
+  shopOffers:
+  - itemId: power_ring
+    healAmount: 10
+    price: 60
+  - itemId: life_charm
+    healAmount: 10
+    price: 45
+  - itemId: 
+    healAmount: 10
+    price: 40
   handSize: 3
   blockWeight2: 4
   blockWeight3: 4

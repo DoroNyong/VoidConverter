@@ -21,6 +21,17 @@ namespace VoidConverter.Data
         public ItemDefinition ToDefinition() => new ItemDefinition(id, displayName, attackBonus, maxHpBonus);
     }
 
+    /// <summary>One shelf slot as edited in the inspector: an item (by id) or a heal, with its price.</summary>
+    [Serializable]
+    public class ShopOfferData
+    {
+        [Tooltip("Id of a catalog item to sell. Leave empty to sell a heal instead.")]
+        public string itemId;
+        [Tooltip("HP restored when itemId is empty.")]
+        public int healAmount = 10;
+        public int price = 30;
+    }
+
     /// <summary>Tunable numbers live here so they can be changed without touching code.</summary>
     [CreateAssetMenu(menuName = "VoidConverter/Game Config", fileName = "GameConfig")]
     public class GameConfig : ScriptableObject
@@ -83,8 +94,12 @@ namespace VoidConverter.Data
         [Header("Round")]
         [Tooltip("How many blocks the player may place in one round.")]
         public int maxPlacements = 6;
-        [Tooltip("The run is cleared after this many rounds.")]
-        public int maxRounds = 5;
+        [Tooltip("The run is cleared after the last stage. Combat and Boss stages play a grid round.")]
+        public List<StageType> stages = new List<StageType>
+        {
+            StageType.Combat, StageType.Event, StageType.Combat, StageType.Event,
+            StageType.Combat, StageType.Shop, StageType.Boss,
+        };
         [Tooltip("The round can be ended by hand once this many blocks were placed.")]
         public int minPlacementsToEnd = 3;
         [Tooltip("Corruption lost when a round ends.")]
@@ -95,6 +110,15 @@ namespace VoidConverter.Data
         {
             new ItemData { id = "power_ring", displayName = "Power Ring", attackBonus = 1, maxHpBonus = 0 },
             new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 5 },
+        };
+
+        [Header("Shop")]
+        [Tooltip("The fixed shelf shown at every Shop stage.")]
+        public List<ShopOfferData> shopOffers = new List<ShopOfferData>
+        {
+            new ShopOfferData { itemId = "power_ring", price = 60 },
+            new ShopOfferData { itemId = "life_charm", price = 45 },
+            new ShopOfferData { itemId = "", healAmount = 10, price = 40 },
         };
 
         [Header("Blocks")]
@@ -145,6 +169,23 @@ namespace VoidConverter.Data
                 if (data.id == id) return data.ToDefinition();
             }
             return null;
+        }
+
+        /// <summary>A fresh shelf for one shop visit. Rows naming an unknown item are skipped.</summary>
+        public List<ShopOffer> CreateShopOffers()
+        {
+            var offers = new List<ShopOffer>();
+            foreach (var data in shopOffers)
+            {
+                if (string.IsNullOrEmpty(data.itemId))
+                {
+                    offers.Add(ShopOffer.ForHeal(data.healAmount, data.price));
+                    continue;
+                }
+                var item = FindItem(data.itemId);
+                if (item != null) offers.Add(ShopOffer.ForItem(item, data.price));
+            }
+            return offers;
         }
 
         public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);

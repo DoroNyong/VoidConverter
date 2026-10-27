@@ -7,7 +7,7 @@ namespace VoidConverter.View
 {
     /// <summary>
     /// One on-screen button to the right of the hand: "End Round" while playing (enabled after enough blocks were
-    /// placed), "Restart" once the run is cleared or lost. Space / Enter do the same.
+    /// placed), "Continue" on the event and shop screens, "Restart" once the run is cleared or lost. Space / Enter do the same.
     /// </summary>
     public class RoundButtonView : MonoBehaviour
     {
@@ -62,7 +62,12 @@ namespace VoidConverter.View
 
         void Refresh()
         {
-            if (controller.Phase != RunPhase.Playing)
+            if (controller.Phase == RunPhase.Event || controller.Phase == RunPhase.Shop)
+            {
+                label.text = "Continue";
+                background.color = EnabledColor;
+            }
+            else if (controller.Phase != RunPhase.Playing)
             {
                 label.text = "Restart";
                 background.color = RestartColor;

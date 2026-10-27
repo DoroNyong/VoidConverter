@@ -54,7 +54,7 @@ namespace VoidConverter.View
         void Refresh()
         {
             var p = controller.Player;
-            stats.text = $"Round {controller.Round}/{controller.MaxRounds}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}-{p.AttackMax}" +
+            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}-{p.AttackMax}" +
                          $"    Gold {p.Gold}    Blocks {controller.PlacementsUsed}/{controller.MaxPlacements}";
             stats.color = p.IsDead ? DeadColor : StatsColor;
 
@@ -62,15 +62,26 @@ namespace VoidConverter.View
             voidStats.text = $"Corruption {p.Corruption}/{p.MaxCorruption}    Void monster {monsterPercent}%    Void power {controller.Grid.VoidPower}";
             message.text = controller.Message;
 
-            bool over = controller.Phase != RunPhase.Playing;
-            banner.SetActive(over);
-            if (over)
+            // The shop draws its own screen; the other non-playing phases use this banner.
+            var phase = controller.Phase;
+            bool showBanner = phase == RunPhase.Cleared || phase == RunPhase.Defeated || phase == RunPhase.Event;
+            banner.SetActive(showBanner);
+            if (!showBanner) return;
+
+            if (phase == RunPhase.Event)
             {
-                bool cleared = controller.Phase == RunPhase.Cleared;
-                bannerText.text = cleared
-                    ? $"CLEARED!\nGold {p.Gold}"
-                    : $"DEFEATED\nRound {controller.Round}/{controller.MaxRounds}\nGold {p.Gold}";
-                bannerText.color = cleared ? ClearColor : DeadColor;
+                bannerText.text = "EVENT\n(coming soon)";
+                bannerText.color = MessageColor;
+            }
+            else if (phase == RunPhase.Cleared)
+            {
+                bannerText.text = $"CLEARED!\nGold {p.Gold}";
+                bannerText.color = ClearColor;
+            }
+            else
+            {
+                bannerText.text = $"DEFEATED\nStage {controller.Stage}/{controller.StageCount}\nGold {p.Gold}";
+                bannerText.color = DeadColor;
             }
         }
     }

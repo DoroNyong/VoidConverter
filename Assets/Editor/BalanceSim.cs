@@ -59,7 +59,7 @@ namespace VoidConverter.EditorTools
         public static Result Run(GameConfig cfg, Bot bot, int runs, int seed)
         {
             var rng = new Random(seed);
-            var result = new Result { Bot = bot, Runs = runs, DeathsByRound = new int[cfg.maxRounds + 2] };
+            var result = new Result { Bot = bot, Runs = runs, DeathsByRound = new int[cfg.stages.Count + 2] };
 
             for (int i = 0; i < runs; i++)
             {
@@ -70,8 +70,14 @@ namespace VoidConverter.EditorTools
                 go.SetActive(true);                      // Awake runs here, with the config above
 
                 int guard = 0;
-                while (gc.Phase == RunPhase.Playing && guard++ < 200)
+                while ((gc.Phase == RunPhase.Playing || gc.Phase == RunPhase.Event || gc.Phase == RunPhase.Shop) && guard++ < 200)
                 {
+                    // The bots do not buy yet: they walk through the event and shop stages.
+                    if (gc.Phase != RunPhase.Playing)
+                    {
+                        gc.PressMainButton();
+                        continue;
+                    }
                     if (!PlaceOne(gc, cfg, bot, rng))
                     {
                         if (gc.CanEndRound) gc.PressMainButton();
@@ -83,13 +89,13 @@ namespace VoidConverter.EditorTools
                 if (gc.Phase == RunPhase.Cleared)
                 {
                     result.Cleared++;
-                    result.TotalRoundsPlayed += cfg.maxRounds;
+                    result.TotalRoundsPlayed += cfg.stages.Count;
                     result.TotalHpLeftOnClear += gc.Player.Hp;
                 }
                 else
                 {
-                    result.TotalRoundsPlayed += gc.Round;
-                    result.DeathsByRound[Mathf.Min(gc.Round, cfg.maxRounds + 1)]++;
+                    result.TotalRoundsPlayed += gc.Stage;
+                    result.DeathsByRound[Mathf.Min(gc.Stage, cfg.stages.Count + 1)]++;
                 }
                 UnityEngine.Object.DestroyImmediate(go);
             }

@@ -104,5 +104,13 @@ namespace VoidConverter.Core
         {
             Gold += System.Math.Max(0, amount);
         }
+
+        /// <summary>Pays gold. Returns false (and takes nothing) if the player has less than that.</summary>
+        public bool SpendGold(int amount)
+        {
+            if (amount < 0 || amount > Gold) return false;
+            Gold -= amount;
+            return true;
+        }
     }
 }

@@ -10,7 +10,11 @@ namespace VoidConverter.Game
 {
     public enum RunPhase
     {
+        // A Combat or Boss stage: the grid round is being played.
         Playing,
+        // The Event stage (placeholder screen) and the Shop stage wait for the player to press Continue.
+        Event,
+        Shop,
         Cleared,
         Defeated,
     }
@@ -26,8 +30,13 @@ namespace VoidConverter.Game
         public PlayerStats Player { get; private set; }
         public RunPhase Phase { get; private set; }
 
-        public int Round { get; private set; }
-        public int MaxRounds => config.maxRounds;
+        /// <summary>The 1-based position in the run's stage list.</summary>
+        public int Stage { get; private set; }
+        public int StageCount => config.stages.Count;
+        public StageType CurrentStage => config.stages[Stage - 1];
+
+        /// <summary>The shelf of the current Shop stage (empty outside it).</summary>
+        public IReadOnlyList<ShopOffer> ShopOffers => shopOffers;
 
         public int PlacementsUsed { get; private set; }
         public int MaxPlacements => config.maxPlacements;
@@ -44,6 +53,7 @@ namespace VoidConverter.Game
         public event Action Changed;
 
         System.Random rng;
+        List<ShopOffer> shopOffers = new List<ShopOffer>();
 
         void Awake()
         {
@@ -62,7 +72,7 @@ namespace VoidConverter.Game
             if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) PressMainButton();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            // Debug until the shop exists: 1 / 2 give the first two catalog items, Backspace takes back the last one.
+            // Debug: 1 / 2 give the first two catalog items, Backspace takes back the last one.
             if (keyboard.digit1Key.wasPressedThisFrame && config.items.Count > 0) AddItem(config.items[0].id);
             if (keyboard.digit2Key.wasPressedThisFrame && config.items.Count > 1) AddItem(config.items[1].id);
             if (keyboard.backspaceKey.wasPressedThisFrame && Player.Items.Count > 0) RemoveItemAt(Player.Items.Count - 1);
@@ -82,7 +92,7 @@ namespace VoidConverter.Game
             return true;
         }
 
-        /// <summary>Takes an item away (the shop will use this for selling).</summary>
+        /// <summary>Takes an item away (for events and boss patterns; the shop does not buy items back).</summary>
         public bool RemoveItemAt(int index)
         {
             if (!Player.RemoveItemAt(index)) return false;
@@ -90,15 +100,34 @@ namespace VoidConverter.Game
             return true;
         }
 
-        /// <summary>Starts a fresh run: round 1, full HP, no gold, no corruption.</summary>
+        /// <summary>Starts a fresh run: first stage, full HP, no gold, no corruption.</summary>
         public void NewRun()
         {
             Player = config.CreatePlayer();
-            Round = 1;
-            Phase = RunPhase.Playing;
+            Stage = 1;
             Message = "";
-            StartRound();
+            EnterStage();
             Changed?.Invoke();
+        }
+
+        /// <summary>Sets up the current stage: a grid round, the event placeholder or a fresh shop shelf.</summary>
+        void EnterStage()
+        {
+            shopOffers = new List<ShopOffer>();
+            switch (CurrentStage)
+            {
+                case StageType.Event:
+                    Phase = RunPhase.Event;
+                    break;
+                case StageType.Shop:
+                    Phase = RunPhase.Shop;
+                    shopOffers = config.CreateShopOffers();
+                    break;
+                default:
+                    Phase = RunPhase.Playing;
+                    StartRound();
+                    break;
+            }
         }
 
         void StartRound()
@@ -112,9 +141,19 @@ namespace VoidConverter.Game
             PlacementsUsed = 0;
         }
 
-        /// <summary>The one button: ends the round by hand while playing, or restarts after the run is over.</summary>
+        /// <summary>
+        /// The one button: ends the round by hand while playing, moves on from an event or the shop, or restarts
+        /// after the run is over.
+        /// </summary>
         public void PressMainButton()
         {
+            if (Phase == RunPhase.Event || Phase == RunPhase.Shop)
+            {
+                Message = "";
+                AdvanceStage();
+                Changed?.Invoke();
+                return;
+            }
             if (Phase != RunPhase.Playing)
             {
                 NewRun();
@@ -122,25 +161,48 @@ namespace VoidConverter.Game
             }
             if (!CanEndRound) return;
 
-            Message = $"Round {Round} ended early";
+            Message = $"Stage {Stage} ended early";
             FinishRound();
             Changed?.Invoke();
         }
 
-        /// <summary>Corruption fades, then the next round starts, or the run is cleared after the last one.</summary>
+        /// <summary>Corruption fades, then the run moves on to the next stage.</summary>
         void FinishRound()
         {
             Player.ReduceCorruption(config.corruptionDecayPerRound);
+            AdvanceStage();
+        }
 
-            if (Round >= MaxRounds)
+        /// <summary>Enters the next stage, or clears the run after the last one.</summary>
+        void AdvanceStage()
+        {
+            if (Stage >= StageCount)
             {
                 Phase = RunPhase.Cleared;
                 Message += (Message.Length > 0 ? "\n" : "") + $"CLEARED! Gold {Player.Gold}   (Space: restart)";
                 return;
             }
 
-            Round++;
-            StartRound();
+            Stage++;
+            EnterStage();
+        }
+
+        /// <summary>Buys the offer at this shelf position during the Shop stage. Returns whether it was bought.</summary>
+        public bool TryBuy(int index)
+        {
+            if (Phase != RunPhase.Shop || index < 0 || index >= shopOffers.Count) return false;
+
+            var offer = shopOffers[index];
+            var result = Shop.Buy(Player, offer);
+            Message = result switch
+            {
+                Shop.BuyResult.Bought => $"Bought {offer.Name} ({offer.Summary}) for {offer.Price}",
+                Shop.BuyResult.NotEnoughGold => $"Not enough gold for {offer.Name} ({offer.Price})",
+                Shop.BuyResult.FullHealth => "HP is already full",
+                _ => "Already sold",
+            };
+            Changed?.Invoke();
+            return result == Shop.BuyResult.Bought;
         }
 
         /// <summary>
@@ -221,11 +283,11 @@ namespace VoidConverter.Game
             if (Player.IsDead)
             {
                 Phase = RunPhase.Defeated;
-                Message += $"\nDEFEATED in round {Round}/{MaxRounds}   (Space: restart)";
+                Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
             }
             else if (OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere))
             {
-                Message += OutOfPlacements ? $"\nRound {Round} complete" : $"\nRound {Round} complete (no room left)";
+                Message += OutOfPlacements ? $"\nStage {Stage} complete" : $"\nStage {Stage} complete (no room left)";
                 FinishRound();
             }
 
