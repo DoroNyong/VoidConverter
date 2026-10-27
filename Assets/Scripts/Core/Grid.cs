@@ -167,12 +167,14 @@ namespace VoidConverter.Core
         public int MonsterMin;
         public int GoldMin;
         public int HealMin;
+        // Gold and heal cells together never exceed this (0 = no cap). Cells over the cap become monsters.
+        public int RewardMax;
         public float MonsterWeight;
         public float GoldWeight;
         public float HealWeight;
-        // Spacing. VoidMinSpacing is a Chebyshev distance (2 = void cells may not even touch diagonally).
-        // RewardMinSpacing is a Manhattan distance between any two reward cells (2 = never edge to edge).
-        // MonsterMaxCluster caps the largest group of edge-connected monsters (0 = no cap). 1 disables a spacing rule.
+        // Spacing, both as Chebyshev distances (2 = cells may not even touch diagonally, 1 = no rule).
+        // VoidMinSpacing applies between void cells, RewardMinSpacing between any two reward (gold/heal) cells.
+        // MonsterMaxCluster caps the largest group of edge-connected monsters (0 = no cap).
         public int VoidMinSpacing;
         public int RewardMinSpacing;
         public int MonsterMaxCluster;

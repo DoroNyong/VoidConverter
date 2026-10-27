@@ -20,7 +20,9 @@ namespace VoidConverter.Data
         [Tooltip("Every board has at least this many gold cells.")]
         public int goldMin = 2;
         [Tooltip("Every board has at least this many heal cells.")]
-        public int healMin = 1;
+        public int healMin = 2;
+        [Tooltip("Gold and heal cells together never exceed this per board (0 = no cap). Cells over the cap become monsters.")]
+        public int rewardMax = 6;
         [Tooltip("The cells left after the void count and the minimums are split among monster/gold/heal by these weights.")]
         public float monsterWeight = 5f;
         public float goldWeight = 1f;
@@ -29,7 +31,7 @@ namespace VoidConverter.Data
         [Header("Cell Spacing")]
         [Tooltip("Void cells keep this Chebyshev distance from each other. 2 = not even diagonally touching. 1 = no rule.")]
         public int voidMinSpacing = 2;
-        [Tooltip("Gold/heal cells keep this Manhattan distance from each other. 2 = never edge to edge. 1 = no rule.")]
+        [Tooltip("Gold/heal cells keep this Chebyshev distance from each other. 2 = not even diagonally touching. 1 = no rule.")]
         public int rewardMinSpacing = 2;
         [Tooltip("The largest group of edge-connected monster cells may not exceed this. 0 = no cap.")]
         public int monsterMaxCluster = 8;
@@ -90,6 +92,7 @@ namespace VoidConverter.Data
             MonsterMin = monsterMin,
             GoldMin = goldMin,
             HealMin = healMin,
+            RewardMax = rewardMax,
             MonsterWeight = monsterWeight,
             GoldWeight = goldWeight,
             HealWeight = healWeight,

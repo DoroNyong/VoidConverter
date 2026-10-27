@@ -19,7 +19,8 @@ MonoBehaviour:
   voidCount: 5
   monsterMin: 10
   goldMin: 2
-  healMin: 1
+  healMin: 2
+  rewardMax: 6
   monsterWeight: 5
   goldWeight: 1
   healWeight: 1

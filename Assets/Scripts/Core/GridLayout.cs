@@ -53,10 +53,11 @@ namespace VoidConverter.Core
             c.Gold = Math.Max(s.GoldMin, 0);
             c.Heal = Math.Max(s.HealMin, 0);
 
-            // Minimums that do not fit are trimmed, largest first.
-            while (c.Monster + c.Gold + c.Heal > rest)
+            // Minimums that do not fit are trimmed, largest first. A reward cap below the reward minimums trims them too.
+            while (c.Monster + c.Gold + c.Heal > rest || (s.RewardMax > 0 && c.Gold + c.Heal > s.RewardMax))
             {
-                if (c.Monster >= c.Gold && c.Monster >= c.Heal) c.Monster--;
+                bool rewardsOverCap = s.RewardMax > 0 && c.Gold + c.Heal > s.RewardMax;
+                if (!rewardsOverCap && c.Monster >= c.Gold && c.Monster >= c.Heal) c.Monster--;
                 else if (c.Gold >= c.Heal) c.Gold--;
                 else c.Heal--;
             }
@@ -66,7 +67,9 @@ namespace VoidConverter.Core
             for (int i = 0; i < extra; i++)
             {
                 float roll = weightTotal > 0f ? (float)rng.NextDouble() * weightTotal : 0f;
-                if (weightTotal <= 0f || roll < s.MonsterWeight) c.Monster++;
+                bool rewardsFull = s.RewardMax > 0 && c.Gold + c.Heal >= s.RewardMax;
+                // Once the reward cap is reached, every remaining cell is a monster.
+                if (weightTotal <= 0f || roll < s.MonsterWeight || rewardsFull) c.Monster++;
                 else if (roll < s.MonsterWeight + s.GoldWeight) c.Gold++;
                 else c.Heal++;
             }
@@ -94,7 +97,8 @@ namespace VoidConverter.Core
             if (voids.Count < counts.Void) return null;
             foreach (var p in voids) { taken[p.x, p.y] = true; types[p.x, p.y] = CellType.Void; }
 
-            // 2) Reward cells (gold and heal together), not touching each other.
+            // 2) Reward cells (gold and heal together), kept apart like the void cells (not even diagonally touching).
+            //    Otherwise one L- or S-shaped block could take two diagonal rewards at once.
             int rewardSpacing = tier >= 2 ? 1 : Math.Max(s.RewardMinSpacing, 1);
             int rewardCount = counts.Gold + counts.Heal;
             var rewards = new List<(int x, int y)>();
@@ -103,7 +107,7 @@ namespace VoidConverter.Core
             {
                 if (rewards.Count >= rewardCount) break;
                 if (taken[p.x, p.y]) continue;
-                if (FarEnough(p, rewards, rewardSpacing, chebyshev: false)) rewards.Add(p);
+                if (FarEnough(p, rewards, rewardSpacing, chebyshev: true)) rewards.Add(p);
             }
             if (rewards.Count < rewardCount) return null;
             Shuffle(rewards, rng);
