@@ -1,11 +1,21 @@
+using System.Collections.Generic;
+
 namespace VoidConverter.Core
 {
     public class PlayerStats
     {
-        public int MaxHp { get; }
+        readonly int baseMaxHp;
+        readonly int baseAttackMin;
+        readonly int baseAttackMax;
+        readonly List<ItemDefinition> items = new List<ItemDefinition>();
+
+        /// <summary>Items carried for the rest of the run. The same item can appear more than once.</summary>
+        public IReadOnlyList<ItemDefinition> Items => items;
+
+        public int MaxHp => baseMaxHp + SumOf(i => i.MaxHpBonus);
         public int Hp { get; private set; }
-        public int AttackMin { get; }
-        public int AttackMax { get; }
+        public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus);
+        public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus);
 
         /// <summary>Rises whenever void cells are activated. Higher corruption makes void cells spawn monsters.</summary>
         public int Corruption { get; private set; }
@@ -17,19 +27,53 @@ namespace VoidConverter.Core
 
         public PlayerStats(int maxHp, int attackMin, int attackMax, int maxCorruption)
         {
-            MaxHp = maxHp;
+            baseMaxHp = maxHp;
             Hp = maxHp;
-            AttackMin = attackMin;
-            AttackMax = attackMax;
+            baseAttackMin = attackMin;
+            baseAttackMax = attackMax;
             MaxCorruption = maxCorruption;
+        }
+
+        int SumOf(System.Func<ItemDefinition, int> bonus)
+        {
+            int total = 0;
+            foreach (var item in items) total += bonus(item);
+            return total;
+        }
+
+        /// <summary>
+        /// Takes the item. A max HP bonus raises current HP by the same amount, so the extra health can be used at once.
+        /// </summary>
+        public void AddItem(ItemDefinition item)
+        {
+            items.Add(item);
+            if (!IsDead) Hp = System.Math.Min(MaxHp, Hp + item.MaxHpBonus);
+        }
+
+        /// <summary>
+        /// Gives the item up (for selling). Current HP is cut down to the new max, but never below 1, so selling
+        /// an item cannot kill the player. Returns false if the player does not carry that item.
+        /// </summary>
+        public bool RemoveItem(ItemDefinition item)
+        {
+            if (!items.Remove(item)) return false;
+            if (!IsDead) Hp = System.Math.Max(1, System.Math.Min(Hp, MaxHp));
+            return true;
+        }
+
+        public bool RemoveItemAt(int index)
+        {
+            if (index < 0 || index >= items.Count) return false;
+            return RemoveItem(items[index]);
         }
 
         /// <summary>Chance (0..1) that a uniformly rolled attack is at least <paramref name="monsterPower"/>.</summary>
         public float WinChance(int monsterPower)
         {
-            int total = AttackMax - AttackMin + 1;
+            int min = AttackMin, max = AttackMax;
+            int total = max - min + 1;
             int winning = 0;
-            for (int roll = AttackMin; roll <= AttackMax; roll++)
+            for (int roll = min; roll <= max; roll++)
             {
                 if (roll >= monsterPower) winning++;
             }

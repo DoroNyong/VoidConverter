@@ -43,6 +43,15 @@ MonoBehaviour:
   maxRounds: 5
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
+  items:
+  - id: power_ring
+    displayName: Power Ring
+    attackBonus: 1
+    maxHpBonus: 0
+  - id: life_charm
+    displayName: Life Charm
+    attackBonus: 0
+    maxHpBonus: 5
   handSize: 3
   blockWeight2: 4
   blockWeight3: 4

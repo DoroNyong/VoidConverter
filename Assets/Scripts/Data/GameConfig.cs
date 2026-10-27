@@ -1,8 +1,26 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using VoidConverter.Core;
 
 namespace VoidConverter.Data
 {
+    /// <summary>One item as edited in the inspector. Add rows to GameConfig.items to create more items.</summary>
+    [Serializable]
+    public class ItemData
+    {
+        [Tooltip("Unique key, e.g. power_ring.")]
+        public string id;
+        [Tooltip("Shown in the item list. ASCII only for now.")]
+        public string displayName;
+        [Tooltip("Added to both ends of the attack range.")]
+        public int attackBonus;
+        [Tooltip("Added to the max HP. Current HP rises by the same amount.")]
+        public int maxHpBonus;
+
+        public ItemDefinition ToDefinition() => new ItemDefinition(id, displayName, attackBonus, maxHpBonus);
+    }
+
     /// <summary>Tunable numbers live here so they can be changed without touching code.</summary>
     [CreateAssetMenu(menuName = "VoidConverter/Game Config", fileName = "GameConfig")]
     public class GameConfig : ScriptableObject
@@ -72,6 +90,13 @@ namespace VoidConverter.Data
         [Tooltip("Corruption lost when a round ends.")]
         public int corruptionDecayPerRound = 2;
 
+        [Header("Items")]
+        public List<ItemData> items = new List<ItemData>
+        {
+            new ItemData { id = "power_ring", displayName = "Power Ring", attackBonus = 1, maxHpBonus = 0 },
+            new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 5 },
+        };
+
         [Header("Blocks")]
         public int handSize = 3;
         [Tooltip("Probability weight of 2-cell blocks (split evenly among that size's shapes).")]
@@ -111,6 +136,16 @@ namespace VoidConverter.Data
             PowerMax = voidPowerMax,
             PowerPerCorruption = voidPowerPerCorruption,
         };
+
+        /// <summary>The item with this id, or null.</summary>
+        public ItemDefinition FindItem(string id)
+        {
+            foreach (var data in items)
+            {
+                if (data.id == id) return data.ToDefinition();
+            }
+            return null;
+        }
 
         public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);
 

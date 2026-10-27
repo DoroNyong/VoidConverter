@@ -60,6 +60,34 @@ namespace VoidConverter.Game
             // Debug: restart the whole run.
             if (keyboard.gKey.wasPressedThisFrame) NewRun();
             if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) PressMainButton();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Debug until the shop exists: 1 / 2 give the first two catalog items, Backspace takes back the last one.
+            if (keyboard.digit1Key.wasPressedThisFrame && config.items.Count > 0) AddItem(config.items[0].id);
+            if (keyboard.digit2Key.wasPressedThisFrame && config.items.Count > 1) AddItem(config.items[1].id);
+            if (keyboard.backspaceKey.wasPressedThisFrame && Player.Items.Count > 0) RemoveItemAt(Player.Items.Count - 1);
+#endif
+        }
+
+        /// <summary>The items the player carries, in the order they were taken.</summary>
+        public IReadOnlyList<ItemDefinition> Items => Player.Items;
+
+        /// <summary>Gives the player the catalog item with this id. Returns false if there is no such item.</summary>
+        public bool AddItem(string itemId)
+        {
+            var item = config.FindItem(itemId);
+            if (item == null) return false;
+            Player.AddItem(item);
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>Takes an item away (the shop will use this for selling).</summary>
+        public bool RemoveItemAt(int index)
+        {
+            if (!Player.RemoveItemAt(index)) return false;
+            Changed?.Invoke();
+            return true;
         }
 
         /// <summary>Starts a fresh run: round 1, full HP, no gold, no corruption.</summary>
