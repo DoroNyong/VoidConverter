@@ -32,6 +32,34 @@ namespace VoidConverter.Data
         public int price = 30;
     }
 
+    [Serializable]
+    public class EventChoiceData
+    {
+        [Tooltip("Button text. ASCII only for now.")]
+        public string label;
+        public EventEffectKind effect;
+        [Tooltip("Gold gained / HP restored (negative gold takes gold away).")]
+        public int amount;
+    }
+
+    /// <summary>One event as edited in the inspector. Add rows to GameConfig.events to create more events.</summary>
+    [Serializable]
+    public class EventData
+    {
+        [Tooltip("Unique key, e.g. abandoned_camp.")]
+        public string id;
+        public string title;
+        [TextArea] public string description;
+        public List<EventChoiceData> choices = new List<EventChoiceData>();
+
+        public EventDefinition ToDefinition()
+        {
+            var list = new List<EventChoice>();
+            foreach (var c in choices) list.Add(new EventChoice(c.label, c.effect, c.amount));
+            return new EventDefinition(id, title, description, list);
+        }
+    }
+
     /// <summary>Tunable numbers live here so they can be changed without touching code.</summary>
     [CreateAssetMenu(menuName = "VoidConverter/Game Config", fileName = "GameConfig")]
     public class GameConfig : ScriptableObject
@@ -105,11 +133,34 @@ namespace VoidConverter.Data
         [Tooltip("Corruption lost when a round ends.")]
         public int corruptionDecayPerRound = 2;
 
+        [Header("Screen Transition")]
+        [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
+        public float fadeSeconds = 0.3f;
+        [Tooltip("Seconds to wait after a round ends before the fade starts, so its last result can be read.")]
+        public float fadeDelaySeconds = 0.5f;
+
         [Header("Items")]
         public List<ItemData> items = new List<ItemData>
         {
             new ItemData { id = "power_ring", displayName = "Power Ring", attackBonus = 1, maxHpBonus = 0 },
             new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 5 },
+        };
+
+        [Header("Events")]
+        [Tooltip("The pool the Event stages draw from, without repeats until every event was seen.")]
+        public List<EventData> events = new List<EventData>
+        {
+            new EventData
+            {
+                id = "abandoned_camp",
+                title = "Abandoned Camp",
+                description = "You find a deserted camp.\nChoose one.",
+                choices = new List<EventChoiceData>
+                {
+                    new EventChoiceData { label = "Take the coins", effect = EventEffectKind.Gold, amount = 10 },
+                    new EventChoiceData { label = "Rest by the fire", effect = EventEffectKind.Heal, amount = 5 },
+                },
+            },
         };
 
         [Header("Shop")]
@@ -169,6 +220,13 @@ namespace VoidConverter.Data
                 if (data.id == id) return data.ToDefinition();
             }
             return null;
+        }
+
+        public List<EventDefinition> CreateEvents()
+        {
+            var list = new List<EventDefinition>();
+            foreach (var data in events) list.Add(data.ToDefinition());
+            return list;
         }
 
         /// <summary>A fresh shelf for one shop visit. Rows naming an unknown item are skipped.</summary>

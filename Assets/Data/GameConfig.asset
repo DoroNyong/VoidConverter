@@ -43,6 +43,8 @@ MonoBehaviour:
   stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
+  fadeSeconds: 0.3
+  fadeDelaySeconds: 0.5
   items:
   - id: power_ring
     displayName: Power Ring
@@ -52,6 +54,19 @@ MonoBehaviour:
     displayName: Life Charm
     attackBonus: 0
     maxHpBonus: 5
+  events:
+  - id: abandoned_camp
+    title: Abandoned Camp
+    description: 'You find a deserted camp.
+
+      Choose one.'
+    choices:
+    - label: Take the coins
+      effect: 0
+      amount: 10
+    - label: Rest by the fire
+      effect: 1
+      amount: 5
   shopOffers:
   - itemId: power_ring
     healAmount: 10

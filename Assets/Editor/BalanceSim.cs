@@ -72,9 +72,10 @@ namespace VoidConverter.EditorTools
                 int guard = 0;
                 while ((gc.Phase == RunPhase.Playing || gc.Phase == RunPhase.Event || gc.Phase == RunPhase.Shop) && guard++ < 200)
                 {
-                    // The bots do not buy yet: they walk through the event and shop stages.
+                    // The bots do not buy yet: they pick an event choice and walk through the shop.
                     if (gc.Phase != RunPhase.Playing)
                     {
+                        if (gc.Phase == RunPhase.Event && !gc.EventResolved) gc.ChooseEventOption(PickEventChoice(gc));
                         gc.PressMainButton();
                         continue;
                     }
@@ -112,6 +113,18 @@ namespace VoidConverter.EditorTools
             double hpOnClear = r.Cleared > 0 ? r.TotalHpLeftOnClear / r.Cleared : 0;
             return $"{r.Bot} clear={r.Cleared * 100f / r.Runs:0}% avgRound={r.TotalRoundsPlayed / r.Runs:0.0} " +
                    $"hpLeftOnClear={hpOnClear:0} gold={r.TotalGold / r.Runs:0} deaths[{deaths.ToString().Trim()}]";
+        }
+
+        // Heals when hurt, otherwise takes gold.
+        static int PickEventChoice(GameController gc)
+        {
+            bool hurt = gc.Player.Hp < gc.Player.MaxHp;
+            var choices = gc.CurrentEvent.Choices;
+            for (int i = 0; i < choices.Count; i++)
+            {
+                if ((choices[i].Kind == EventEffectKind.Heal) == hurt) return i;
+            }
+            return 0;
         }
 
         // One placement for the bot. Returns false when nothing could be placed.

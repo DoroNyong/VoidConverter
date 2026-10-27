@@ -37,9 +37,10 @@ namespace VoidConverter.View
             float y = -(gridHalfHeight + 0.6f + config.handSlotSize * 0.5f);
             center = new Vector2(x, y);
 
-            background = SpriteUtil.AddSquare(transform, "Button", center, 1f, EnabledColor, 0);
+            // Above the full-screen event and shop backdrops, so Continue stays visible there.
+            background = SpriteUtil.AddSquare(transform, "Button", center, 1f, EnabledColor, 90);
             background.transform.localScale = new Vector3(Size.x, Size.y, 1f);
-            label = TextUtil.AddText(transform, "Label", center, "", 64, 0.04f, Color.white, 10);
+            label = TextUtil.AddText(transform, "Label", center, "", 64, 0.04f, Color.white, 100);
 
             controller.Changed += Refresh;
             Refresh();
@@ -62,7 +63,12 @@ namespace VoidConverter.View
 
         void Refresh()
         {
-            if (controller.Phase == RunPhase.Event || controller.Phase == RunPhase.Shop)
+            if (controller.Phase == RunPhase.Event && !controller.EventResolved)
+            {
+                label.text = "Choose\none";
+                background.color = DisabledColor;
+            }
+            else if (controller.Phase == RunPhase.Event || controller.Phase == RunPhase.Shop)
             {
                 label.text = "Continue";
                 background.color = EnabledColor;

@@ -52,8 +52,28 @@ namespace VoidConverter.Game
         /// <summary>Raised after the board, hand, player or phase changed. Views must re-read state, never cache it.</summary>
         public event Action Changed;
 
+        /// <summary>
+        /// Plays a screen transition around a state change: it must call <paramref name="change"/> once while the
+        /// screen is hidden (after <paramref name="delay"/> seconds and the fade out), then fade in and call
+        /// <paramref name="finished"/>. Set by a view (ScreenFader); without one the changes happen at once.
+        /// </summary>
+        public delegate void TransitionRunner(Action change, float delay, Action finished);
+
+        public TransitionRunner Transitioner { get; set; }
+
+        /// <summary>True while a transition runs. Every player action is ignored until it ends.</summary>
+        public bool InputLocked { get; private set; }
+
+        /// <summary>The event of the current Event stage, or null outside it.</summary>
+        public EventDefinition CurrentEvent { get; private set; }
+        /// <summary>Index of the choice taken in the current event, or -1 while none was taken yet.</summary>
+        public int EventChoiceTaken { get; private set; } = -1;
+        public bool EventResolved => EventChoiceTaken >= 0;
+
         System.Random rng;
         List<ShopOffer> shopOffers = new List<ShopOffer>();
+        List<EventDefinition> eventPool;
+        readonly HashSet<string> seenEvents = new HashSet<string>();
 
         void Awake()
         {
@@ -66,6 +86,8 @@ namespace VoidConverter.Game
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
+
+            if (InputLocked) return;
 
             // Debug: restart the whole run.
             if (keyboard.gKey.wasPressedThisFrame) NewRun();
@@ -103,20 +125,50 @@ namespace VoidConverter.Game
         /// <summary>Starts a fresh run: first stage, full HP, no gold, no corruption.</summary>
         public void NewRun()
         {
-            Player = config.CreatePlayer();
-            Stage = 1;
-            Message = "";
-            EnterStage();
-            Changed?.Invoke();
+            Transition(() =>
+            {
+                Player = config.CreatePlayer();
+                Stage = 1;
+                Message = "";
+                eventPool = config.CreateEvents();
+                seenEvents.Clear();
+                EnterStage();
+            }, 0f);
+        }
+
+        /// <summary>
+        /// Runs a state change behind the screen transition (if a view provides one) and then raises Changed.
+        /// Input stays locked from now until the transition has faded back in.
+        /// </summary>
+        void Transition(Action change, float delay)
+        {
+            if (Transitioner == null || config.fadeSeconds <= 0f)
+            {
+                change();
+                Changed?.Invoke();
+                return;
+            }
+
+            InputLocked = true;
+            Transitioner(() =>
+            {
+                change();
+                Changed?.Invoke();
+            }, delay, () => InputLocked = false);
         }
 
         /// <summary>Sets up the current stage: a grid round, the event placeholder or a fresh shop shelf.</summary>
         void EnterStage()
         {
             shopOffers = new List<ShopOffer>();
+            CurrentEvent = null;
+            EventChoiceTaken = -1;
             switch (CurrentStage)
             {
                 case StageType.Event:
+                    CurrentEvent = EventRules.Pick(eventPool, seenEvents, rng);
+                    // With no events configured the stage is just a pause with a Continue button.
+                    EventChoiceTaken = CurrentEvent == null ? 0 : -1;
                     Phase = RunPhase.Event;
                     break;
                 case StageType.Shop:
@@ -147,11 +199,12 @@ namespace VoidConverter.Game
         /// </summary>
         public void PressMainButton()
         {
+            if (InputLocked) return;
             if (Phase == RunPhase.Event || Phase == RunPhase.Shop)
             {
-                Message = "";
-                AdvanceStage();
-                Changed?.Invoke();
+                // An event must be answered before moving on.
+                if (Phase == RunPhase.Event && !EventResolved) return;
+                AdvanceStage(0f, true);
                 return;
             }
             if (Phase != RunPhase.Playing)
@@ -170,11 +223,12 @@ namespace VoidConverter.Game
         void FinishRound()
         {
             Player.ReduceCorruption(config.corruptionDecayPerRound);
-            AdvanceStage();
+            // A short pause first, so the result of the last block can be read before the screen fades.
+            AdvanceStage(config.fadeDelaySeconds, false);
         }
 
         /// <summary>Enters the next stage, or clears the run after the last one.</summary>
-        void AdvanceStage()
+        void AdvanceStage(float delay, bool clearMessage)
         {
             if (Stage >= StageCount)
             {
@@ -183,14 +237,32 @@ namespace VoidConverter.Game
                 return;
             }
 
-            Stage++;
-            EnterStage();
+            Transition(() =>
+            {
+                if (clearMessage) Message = "";
+                Stage++;
+                EnterStage();
+            }, delay);
+        }
+
+        /// <summary>Takes the choice at this position in the current event (once). Returns whether it was applied.</summary>
+        public bool ChooseEventOption(int index)
+        {
+            if (InputLocked || Phase != RunPhase.Event || CurrentEvent == null || EventResolved) return false;
+            if (index < 0 || index >= CurrentEvent.Choices.Count) return false;
+
+            var choice = CurrentEvent.Choices[index];
+            string result = EventRules.Apply(Player, choice);
+            EventChoiceTaken = index;
+            Message = $"{choice.Label}: {result}";
+            Changed?.Invoke();
+            return true;
         }
 
         /// <summary>Buys the offer at this shelf position during the Shop stage. Returns whether it was bought.</summary>
         public bool TryBuy(int index)
         {
-            if (Phase != RunPhase.Shop || index < 0 || index >= shopOffers.Count) return false;
+            if (InputLocked || Phase != RunPhase.Shop || index < 0 || index >= shopOffers.Count) return false;
 
             var offer = shopOffers[index];
             var result = Shop.Buy(Player, offer);
@@ -214,7 +286,7 @@ namespace VoidConverter.Game
         /// </summary>
         public bool TryPlace(int originX, int originY)
         {
-            if (Phase != RunPhase.Playing || OutOfPlacements) return false;
+            if (InputLocked || Phase != RunPhase.Playing || OutOfPlacements) return false;
 
             var cells = Hand.SelectedCells();
             if (cells == null) return false;
@@ -297,12 +369,12 @@ namespace VoidConverter.Game
 
         public void SelectSlot(int index)
         {
-            if (Hand.Select(index)) Changed?.Invoke();
+            if (!InputLocked && Hand.Select(index)) Changed?.Invoke();
         }
 
         public void RotateSlot(int index)
         {
-            if (index < 0 || index >= Hand.Size || Hand.Slots[index] == null) return;
+            if (InputLocked || index < 0 || index >= Hand.Size || Hand.Slots[index] == null) return;
             Hand.Rotate(index);
             Changed?.Invoke();
         }

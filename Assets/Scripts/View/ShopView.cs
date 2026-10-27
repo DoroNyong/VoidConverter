@@ -7,12 +7,12 @@ using VoidConverter.Game;
 namespace VoidConverter.View
 {
     /// <summary>
-    /// The shop screen, drawn over the grid during the Shop stage: one card per product (click to buy), the current
+    /// The shop screen, drawn full screen during the Shop stage: one card per product (click to buy), the current
     /// gold and HP, and the last purchase message. The Continue button is the shared RoundButtonView.
     /// </summary>
     public class ShopView : MonoBehaviour
     {
-        static readonly Color ShadeColor = new Color(0.03f, 0.05f, 0.09f, 0.97f);
+        static readonly Color ShadeColor = new Color(0.07f, 0.1f, 0.16f);
         static readonly Color TitleColor = new Color(1f, 0.9f, 0.5f);
         static readonly Color CardColor = new Color(0.2f, 0.3f, 0.42f);
         static readonly Color CardDimColor = new Color(0.16f, 0.18f, 0.22f);
@@ -36,12 +36,10 @@ namespace VoidConverter.View
             config = controller.Config;
             cam = Camera.main;
 
-            float step = config.cellSize + config.cellGap;
-            float gridSize = config.gridWidth * step;
-
             root = new GameObject("Shop");
             root.transform.SetParent(transform, false);
-            SpriteUtil.AddSquare(root.transform, "Shade", Vector2.zero, gridSize, ShadeColor, 60);
+            // A solid backdrop that always fills the camera, so the board, hand and HUD are hidden behind this screen.
+            SpriteUtil.AddSquare(root.transform, "Backdrop", Vector2.zero, 1f, ShadeColor, 60).gameObject.AddComponent<CameraFill>();
             header = TextUtil.AddText(root.transform, "Header", new Vector2(0f, 1.9f), "", 64, 0.06f, TitleColor, 70);
             message = TextUtil.AddText(root.transform, "Message", new Vector2(0f, -1.9f), "", 48, 0.034f, Color.white, 70);
             cardsRoot = new GameObject("Cards");

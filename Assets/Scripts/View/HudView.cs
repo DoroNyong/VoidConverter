@@ -64,13 +64,15 @@ namespace VoidConverter.View
 
             // The shop draws its own screen; the other non-playing phases use this banner.
             var phase = controller.Phase;
-            bool showBanner = phase == RunPhase.Cleared || phase == RunPhase.Defeated || phase == RunPhase.Event;
+            // (EventView draws the event screen; the banner only covers an Event stage with no events configured.)
+            bool showBanner = phase == RunPhase.Cleared || phase == RunPhase.Defeated ||
+                              (phase == RunPhase.Event && controller.CurrentEvent == null);
             banner.SetActive(showBanner);
             if (!showBanner) return;
 
             if (phase == RunPhase.Event)
             {
-                bannerText.text = "EVENT\n(coming soon)";
+                bannerText.text = "EVENT\n(no events)";
                 bannerText.color = MessageColor;
             }
             else if (phase == RunPhase.Cleared)

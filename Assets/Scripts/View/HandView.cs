@@ -71,7 +71,7 @@ namespace VoidConverter.View
             var keyboard = Keyboard.current;
             if (mouse == null) return;
             // The hand is idle during the event and shop screens and after the run ends.
-            if (controller.Phase != RunPhase.Playing) return;
+            if (controller.Phase != RunPhase.Playing || controller.InputLocked) return;
 
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
 
