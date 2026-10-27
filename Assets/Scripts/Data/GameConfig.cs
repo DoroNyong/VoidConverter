@@ -33,13 +33,22 @@ namespace VoidConverter.Data
     }
 
     [Serializable]
+    public class EventEffectData
+    {
+        public EventEffectKind kind;
+        [Tooltip("Gold (negative pays gold), HP healed / lost, max HP gained. Ignored by the item effects.")]
+        public int amount;
+        [Tooltip("GainItem only: id of the catalog item to give.")]
+        public string itemId;
+    }
+
+    [Serializable]
     public class EventChoiceData
     {
         [Tooltip("Button text. ASCII only for now.")]
         public string label;
-        public EventEffectKind effect;
-        [Tooltip("Gold gained / HP restored (negative gold takes gold away).")]
-        public int amount;
+        [Tooltip("Applied in order. Leave empty for a choice that does nothing (walk away).")]
+        public List<EventEffectData> effects = new List<EventEffectData>();
     }
 
     /// <summary>One event as edited in the inspector. Add rows to GameConfig.events to create more events.</summary>
@@ -52,10 +61,20 @@ namespace VoidConverter.Data
         [TextArea] public string description;
         public List<EventChoiceData> choices = new List<EventChoiceData>();
 
-        public EventDefinition ToDefinition()
+        /// <summary><paramref name="findItem"/> turns an item id into the catalog item (null if unknown).</summary>
+        public EventDefinition ToDefinition(Func<string, ItemDefinition> findItem)
         {
             var list = new List<EventChoice>();
-            foreach (var c in choices) list.Add(new EventChoice(c.label, c.effect, c.amount));
+            foreach (var c in choices)
+            {
+                var effects = new List<EventEffect>();
+                foreach (var e in c.effects)
+                {
+                    var item = e.kind == EventEffectKind.GainItem ? findItem(e.itemId) : null;
+                    effects.Add(new EventEffect(e.kind, e.amount, item));
+                }
+                list.Add(new EventChoice(c.label, effects));
+            }
             return new EventDefinition(id, title, description, list);
         }
     }
@@ -166,11 +185,74 @@ namespace VoidConverter.Data
                 description = "You find a deserted camp.\nChoose one.",
                 choices = new List<EventChoiceData>
                 {
-                    new EventChoiceData { label = "Take the coins", effect = EventEffectKind.Gold, amount = 10 },
-                    new EventChoiceData { label = "Rest by the fire", effect = EventEffectKind.Heal, amount = 5 },
+                    Choice("Take the coins", Effect(EventEffectKind.Gold, 10)),
+                    Choice("Rest by the fire", Effect(EventEffectKind.Heal, 5)),
+                },
+            },
+            new EventData
+            {
+                id = "shady_peddler",
+                title = "Shady Peddler",
+                description = "A peddler grins at you.\n\"Everything has a price.\"",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Sell your blood", Effect(EventEffectKind.Damage, 5), Effect(EventEffectKind.Gold, 25)),
+                    Choice("Buy a tonic", Effect(EventEffectKind.Gold, -15), Effect(EventEffectKind.Heal, 10)),
+                    Choice("Walk away"),
+                },
+            },
+            new EventData
+            {
+                id = "spring",
+                title = "Clear Spring",
+                description = "Clean water bubbles from the ground.",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Drink", Effect(EventEffectKind.Heal, 8)),
+                    Choice("Bottle some water", Effect(EventEffectKind.Gold, 5)),
+                },
+            },
+            new EventData
+            {
+                id = "wandering_trader",
+                title = "Wandering Trader",
+                description = "A trader opens her pack.\n\"A charm for a fair price?\"",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Buy the charm", Effect(EventEffectKind.Gold, -35), GainItem("life_charm")),
+                    Choice("Walk away"),
+                },
+            },
+            new EventData
+            {
+                id = "old_chest",
+                title = "Old Chest",
+                description = "A rusty chest, and the lock bites.\nSomething glints inside.",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Pry it open", Effect(EventEffectKind.Damage, 8), GainItem("power_ring")),
+                    Choice("Leave it"),
+                },
+            },
+            new EventData
+            {
+                id = "cursed_altar",
+                title = "Cursed Altar",
+                description = "The altar hungers for an offering.\nIt will take one of your items.",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Make an offering", Effect(EventEffectKind.LoseItem, 1), Effect(EventEffectKind.MaxHp, 8)),
+                    Choice("Leave"),
                 },
             },
         };
+
+        static EventEffectData Effect(EventEffectKind kind, int amount) => new EventEffectData { kind = kind, amount = amount };
+
+        static EventEffectData GainItem(string itemId) => new EventEffectData { kind = EventEffectKind.GainItem, itemId = itemId };
+
+        static EventChoiceData Choice(string label, params EventEffectData[] effects) =>
+            new EventChoiceData { label = label, effects = new List<EventEffectData>(effects) };
 
         [Header("Shop")]
         [Tooltip("The fixed shelf shown at every Shop stage.")]
@@ -234,7 +316,7 @@ namespace VoidConverter.Data
         public List<EventDefinition> CreateEvents()
         {
             var list = new List<EventDefinition>();
-            foreach (var data in events) list.Add(data.ToDefinition());
+            foreach (var data in events) list.Add(data.ToDefinition(FindItem));
             return list;
         }
 

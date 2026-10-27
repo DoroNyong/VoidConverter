@@ -66,11 +66,102 @@ MonoBehaviour:
       Choose one.'
     choices:
     - label: Take the coins
-      effect: 0
-      amount: 10
+      effects:
+      - kind: 0
+        amount: 10
+        itemId: 
     - label: Rest by the fire
-      effect: 1
-      amount: 5
+      effects:
+      - kind: 1
+        amount: 5
+        itemId: 
+  - id: shady_peddler
+    title: Shady Peddler
+    description: 'A peddler grins at you.
+
+      "Everything has a price."'
+    choices:
+    - label: Sell your blood
+      effects:
+      - kind: 2
+        amount: 5
+        itemId: 
+      - kind: 0
+        amount: 25
+        itemId: 
+    - label: Buy a tonic
+      effects:
+      - kind: 0
+        amount: -15
+        itemId: 
+      - kind: 1
+        amount: 10
+        itemId: 
+    - label: Walk away
+      effects: []
+  - id: spring
+    title: Clear Spring
+    description: Clean water bubbles from the ground.
+    choices:
+    - label: Drink
+      effects:
+      - kind: 1
+        amount: 8
+        itemId: 
+    - label: Bottle some water
+      effects:
+      - kind: 0
+        amount: 5
+        itemId: 
+  - id: wandering_trader
+    title: Wandering Trader
+    description: 'A trader opens her pack.
+
+      "A charm for a fair price?"'
+    choices:
+    - label: Buy the charm
+      effects:
+      - kind: 0
+        amount: -35
+        itemId: 
+      - kind: 5
+        amount: 0
+        itemId: life_charm
+    - label: Walk away
+      effects: []
+  - id: old_chest
+    title: Old Chest
+    description: 'A rusty chest, and the lock bites.
+
+      Something glints inside.'
+    choices:
+    - label: Pry it open
+      effects:
+      - kind: 2
+        amount: 8
+        itemId: 
+      - kind: 5
+        amount: 0
+        itemId: power_ring
+    - label: Leave it
+      effects: []
+  - id: cursed_altar
+    title: Cursed Altar
+    description: 'The altar hungers for an offering.
+
+      It will take one of your
+      items.'
+    choices:
+    - label: Make an offering
+      effects:
+      - kind: 4
+        amount: 1
+        itemId: 
+      - kind: 3
+        amount: 8
+        itemId: 
+    - label: Leave
+      effects: []
   shopOffers:
   - itemId: power_ring
     healAmount: 10

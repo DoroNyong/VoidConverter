@@ -19,9 +19,9 @@ namespace VoidConverter.View
         static readonly Color DimColor = new Color(0.16f, 0.18f, 0.22f);
         static readonly Color DimTextColor = new Color(1f, 1f, 1f, 0.4f);
         static readonly Color EffectColor = new Color(0.7f, 1f, 0.75f);
-        static readonly Vector2 ChoiceSize = new Vector2(4.4f, 0.8f);
+        static readonly Vector2 ChoiceSize = new Vector2(7.2f, 0.8f);
         const float ChoiceGap = 0.2f;
-        const float ChoiceTop = 0.3f;
+        const float ChoiceTop = 0.4f;
 
         GameController controller;
         GameConfig config;
@@ -43,10 +43,10 @@ namespace VoidConverter.View
             root.transform.SetParent(transform, false);
             // A solid backdrop that always fills the camera, so the board, hand and HUD are hidden behind this screen.
             SpriteUtil.AddSquare(root.transform, "Backdrop", Vector2.zero, 1f, ShadeColor, 60).gameObject.AddComponent<CameraFill>();
-            title = TextUtil.AddText(root.transform, "Title", new Vector2(0f, 1.9f), "", 64, 0.06f, TitleColor, 70);
-            description = TextUtil.AddText(root.transform, "Description", new Vector2(0f, 1.0f), "", 48, 0.036f, TextColor, 70);
-            message = TextUtil.AddText(root.transform, "Message", new Vector2(0f, -1.9f), "", 48, 0.034f, Color.white, 70);
-            status = TextUtil.AddText(root.transform, "Status", new Vector2(0f, 2.7f), "", 48, 0.036f, TextColor, 70);
+            title = TextUtil.AddText(root.transform, "Title", new Vector2(0f, 2.4f), "", 64, 0.06f, TitleColor, 70);
+            description = TextUtil.AddText(root.transform, "Description", new Vector2(0f, 1.5f), "", 48, 0.036f, TextColor, 70);
+            message = TextUtil.AddText(root.transform, "Message", new Vector2(0f, -2.7f), "", 48, 0.034f, Color.white, 70);
+            status = TextUtil.AddText(root.transform, "Status", new Vector2(0f, 3.2f), "", 48, 0.036f, TextColor, 70);
             choicesRoot = new GameObject("Choices");
             choicesRoot.transform.SetParent(root.transform, false);
 
@@ -98,15 +98,16 @@ namespace VoidConverter.View
             {
                 var choice = e.Choices[i];
                 bool chosen = controller.EventChoiceTaken == i;
-                bool dim = controller.EventResolved && !chosen;
+                // Dim the other choices once one was taken, and the ones the player cannot pay for.
+                bool dim = controller.EventResolved ? !chosen : !choice.IsAvailable(controller.Player);
                 Vector2 c = ChoiceCenter(i);
 
                 var button = SpriteUtil.AddSquare(choicesRoot.transform, "Choice", c, 1f, chosen ? ChosenColor : dim ? DimColor : ChoiceColor, 65);
                 button.transform.localScale = new Vector3(ChoiceSize.x, ChoiceSize.y, 1f);
 
                 var textColor = dim ? DimTextColor : Color.white;
-                TextUtil.AddText(choicesRoot.transform, "Label", c + new Vector2(-0.9f, 0f), choice.Label, 48, 0.04f, textColor, 70);
-                TextUtil.AddText(choicesRoot.transform, "Effect", c + new Vector2(1.5f, 0f), choice.Summary, 48, 0.04f, dim ? DimTextColor : EffectColor, 70);
+                TextUtil.AddText(choicesRoot.transform, "Label", c + new Vector2(-1.9f, 0f), choice.Label, 48, 0.04f, textColor, 70);
+                TextUtil.AddText(choicesRoot.transform, "Effect", c + new Vector2(1.9f, 0f), choice.Summary, 48, 0.04f, dim ? DimTextColor : EffectColor, 70);
             }
         }
     }

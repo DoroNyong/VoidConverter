@@ -37,6 +37,9 @@ namespace VoidConverter.EditorTools
             public int[] DeathsByRound;
         }
 
+        /// <summary>Whether the bots spend their gold at the shop. Turn off to measure a run without shopping.</summary>
+        public static bool BotsBuy = true;
+
         static readonly FieldInfo ConfigField =
             typeof(GameController).GetField("config", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -72,10 +75,11 @@ namespace VoidConverter.EditorTools
                 int guard = 0;
                 while ((gc.Phase == RunPhase.Playing || gc.Phase == RunPhase.Event || gc.Phase == RunPhase.Shop) && guard++ < 200)
                 {
-                    // The bots do not buy yet: they pick an event choice and walk through the shop.
+                    // Between combats the bots pick an event choice, shop (if BotsBuy) and press Continue.
                     if (gc.Phase != RunPhase.Playing)
                     {
                         if (gc.Phase == RunPhase.Event && !gc.EventResolved) gc.ChooseEventOption(PickEventChoice(gc));
+                        if (gc.Phase == RunPhase.Shop && BotsBuy) BuyAtShop(gc);
                         gc.PressMainButton();
                         continue;
                     }
@@ -121,16 +125,59 @@ namespace VoidConverter.EditorTools
                    $"hpLeftOnClear={hpOnClear:0} gold={r.TotalGold / r.Runs:0} deaths[{deaths.ToString().Trim()}]";
         }
 
-        // Heals when hurt, otherwise takes gold.
+        // Gold-equivalent values the bots use to compare event effects (roughly the shop's prices).
+        const double GoldPerHp = 4;
+        const double GoldPerMaxHp = 8;
+        const double GoldPerItem = 50;
+
+        // Takes the available choice worth the most gold. Healing counts only up to the missing HP.
         static int PickEventChoice(GameController gc)
         {
-            bool hurt = gc.Player.Hp < gc.Player.MaxHp;
+            var player = gc.Player;
             var choices = gc.CurrentEvent.Choices;
+            int best = -1;
+            double bestValue = double.MinValue;
             for (int i = 0; i < choices.Count; i++)
             {
-                if ((choices[i].Kind == EventEffectKind.Heal) == hurt) return i;
+                if (!choices[i].IsAvailable(player)) continue;
+                double value = 0;
+                foreach (var e in choices[i].Effects)
+                {
+                    switch (e.Kind)
+                    {
+                        case EventEffectKind.Gold: value += e.Amount; break;
+                        case EventEffectKind.Heal: value += Math.Min(e.Amount, player.MaxHp - player.Hp) * GoldPerHp; break;
+                        case EventEffectKind.Damage: value -= e.Amount * GoldPerHp; break;
+                        case EventEffectKind.MaxHp: value += e.Amount * GoldPerMaxHp; break;
+                        case EventEffectKind.LoseItem: value -= GoldPerItem; break;
+                        case EventEffectKind.GainItem: value += GoldPerItem; break;
+                    }
+                }
+                if (value > bestValue)
+                {
+                    bestValue = value;
+                    best = i;
+                }
             }
-            return 0;
+            return Math.Max(best, 0);
+        }
+
+        // Buys power first, then max HP, then a heal when hurt, as long as the gold lasts.
+        static void BuyAtShop(GameController gc)
+        {
+            var offers = gc.ShopOffers;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                for (int i = 0; i < offers.Count; i++)
+                {
+                    var offer = offers[i];
+                    if (offer.Sold) continue;
+                    bool wanted = pass == 0 ? offer.Item != null && offer.Item.AttackBonus > 0
+                        : pass == 1 ? offer.Item != null && offer.Item.AttackBonus == 0
+                        : offer.Item == null;
+                    if (wanted) gc.TryBuy(i);
+                }
+            }
         }
 
         // One placement for the bot. Returns false when nothing could be placed.

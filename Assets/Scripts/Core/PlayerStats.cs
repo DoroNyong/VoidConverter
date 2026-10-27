@@ -12,7 +12,10 @@ namespace VoidConverter.Core
         /// <summary>Items carried for the rest of the run. The same item can appear more than once.</summary>
         public IReadOnlyList<ItemDefinition> Items => items;
 
-        public int MaxHp => baseMaxHp + SumOf(i => i.MaxHpBonus);
+        // Permanent max HP from events, on top of the base and the items.
+        int bonusMaxHp;
+
+        public int MaxHp => baseMaxHp + bonusMaxHp + SumOf(i => i.MaxHpBonus);
         public int Hp { get; private set; }
         public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus);
         public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus);
@@ -65,6 +68,14 @@ namespace VoidConverter.Core
         {
             if (index < 0 || index >= items.Count) return false;
             return RemoveItem(items[index]);
+        }
+
+        /// <summary>Raises max HP for the rest of the run, and current HP by the same amount (like a max HP item).</summary>
+        public void AddMaxHp(int amount)
+        {
+            amount = System.Math.Max(0, amount);
+            bonusMaxHp += amount;
+            if (!IsDead) Hp = System.Math.Min(MaxHp, Hp + amount);
         }
 
         /// <summary>Chance (0..1) that a uniformly rolled attack is at least <paramref name="monsterPower"/>.</summary>

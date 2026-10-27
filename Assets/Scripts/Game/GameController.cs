@@ -281,7 +281,14 @@ namespace VoidConverter.Game
             if (index < 0 || index >= CurrentEvent.Choices.Count) return false;
 
             var choice = CurrentEvent.Choices[index];
-            string result = EventRules.Apply(Player, choice);
+            if (!choice.IsAvailable(Player))
+            {
+                Message = $"Cannot choose: {choice.Label}";
+                Changed?.Invoke();
+                return false;
+            }
+
+            string result = EventRules.Apply(Player, choice, rng);
             EventChoiceTaken = index;
             Message = $"{choice.Label}: {result}";
             Changed?.Invoke();
