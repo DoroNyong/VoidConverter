@@ -41,7 +41,7 @@ namespace VoidConverter.Core
 
         struct Counts
         {
-            public int Void, Monster, Gold, Heal;
+            public int Void, Monster, Gold, Heal, Empty;
         }
 
         // Exact void count, then each other type's minimum, then the leftover cells split by weight.
@@ -49,6 +49,25 @@ namespace VoidConverter.Core
         {
             var c = new Counts { Void = Math.Min(Math.Max(s.VoidCount, 0), cellTotal) };
             int rest = cellTotal - c.Void;
+
+            if (s.MonsterCount > 0)
+            {
+                // Exact monster count; gold and heal reach RewardMax (at least their minimums); the rest stay empty.
+                c.Monster = Math.Min(s.MonsterCount, rest);
+                int room = rest - c.Monster;
+                c.Gold = Math.Min(Math.Max(s.GoldMin, 0), room);
+                c.Heal = Math.Min(Math.Max(s.HealMin, 0), room - c.Gold);
+                int rewardTarget = Math.Min(room, Math.Max(s.RewardMax, c.Gold + c.Heal));
+                float rewardWeight = s.GoldWeight + s.HealWeight;
+                while (c.Gold + c.Heal < rewardTarget)
+                {
+                    bool gold = rewardWeight <= 0f || rng.NextDouble() * rewardWeight < s.GoldWeight;
+                    if (gold) c.Gold++; else c.Heal++;
+                }
+                c.Empty = room - c.Gold - c.Heal;
+                return c;
+            }
+
             c.Monster = Math.Max(s.MonsterMin, 0);
             c.Gold = Math.Max(s.GoldMin, 0);
             c.Heal = Math.Max(s.HealMin, 0);
@@ -118,10 +137,14 @@ namespace VoidConverter.Core
                 types[p.x, p.y] = i < counts.Gold ? CellType.Gold : CellType.Heal;
             }
 
-            // 3) Everything left is a monster.
-            for (int x = 0; x < width; x++)
-                for (int y = 0; y < height; y++)
-                    if (!taken[x, y]) types[x, y] = CellType.Monster;
+            // 3) Everything left is a monster, except the cells that are meant to stay empty (random ones).
+            var leftover = new List<(int x, int y)>();
+            foreach (var p in positions) if (!taken[p.x, p.y]) leftover.Add(p);
+            Shuffle(leftover, rng);
+            for (int i = 0; i < leftover.Count; i++)
+            {
+                types[leftover[i].x, leftover[i].y] = i < counts.Empty ? CellType.Empty : CellType.Monster;
+            }
 
             if (tier == 0 && s.MonsterMaxCluster > 0 && LargestMonsterCluster(types, width, height) > s.MonsterMaxCluster) return null;
             return types;

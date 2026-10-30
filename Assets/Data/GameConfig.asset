@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d526205c675cb5c41b34161002adbaca, type: 3}
-  m_Name: GameConfig
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoidConverter.Data.GameConfig
   gridWidth: 5
   gridHeight: 5
@@ -18,6 +18,7 @@ MonoBehaviour:
   cellGap: 0.06
   voidCount: 5
   monsterMin: 10
+  monsterCount: 10
   goldMin: 2
   healMin: 2
   rewardMax: 6
@@ -27,26 +28,35 @@ MonoBehaviour:
   voidMinSpacing: 2
   rewardMinSpacing: 2
   monsterMaxCluster: 8
-  monsterPowerMin: 3
-  monsterPowerMax: 9
-  playerMaxHp: 30
-  playerAttackMin: 5
-  playerAttackMax: 12
+  monsterPowerMin: 2
+  monsterPowerMax: 4
+  playerMaxHp: 10
+  playerAttackMin: 2
+  playerAttackMax: 4
   maxCorruption: 10
-  voidPowerMin: 3
-  voidPowerMax: 9
-  voidPowerPerCorruption: 0.5
+  voidPowerMin: 2
+  voidPowerMax: 4
+  voidPowerPerCorruption: 0.2
+  voidBuffCount: 1
+  voidSpreadCount: 1
+  voidDangerCount: 1
+  voidBuffPower: 1
+  voidDangerHp: 6
+  voidDangerRewardGold: 3
   goldPerMonsterPower: 1
-  goldCellReward: 2
-  healCellAmount: 2
+  goldCellReward: 1
+  healCellAmount: 1
+  clearAllRule: 1
+  clearTurnLimit: 5
+  overtimeGrowth: 1
   maxPlacements: 6
   stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
   bossHoldPlacements: 5
-  bossMonsterGrowth: 1
-  bossStrongMonsterCount: 2
-  bossStrongMonsterPower: 15
+  bossMonsterGrowth: 0
+  bossStrongMonsterCount: 3
+  bossStrongMonsterPower: 5
   fadeSeconds: 0.3
   fadeDelaySeconds: 0.5
   items:
@@ -57,7 +67,7 @@ MonoBehaviour:
   - id: life_charm
     displayName: Life Charm
     attackBonus: 0
-    maxHpBonus: 5
+    maxHpBonus: 2
   events:
   - id: abandoned_camp
     title: Abandoned Camp
@@ -68,12 +78,12 @@ MonoBehaviour:
     - label: Take the coins
       effects:
       - kind: 0
-        amount: 10
+        amount: 4
         itemId: 
     - label: Rest by the fire
       effects:
       - kind: 1
-        amount: 5
+        amount: 2
         itemId: 
   - id: shady_peddler
     title: Shady Peddler
@@ -84,18 +94,18 @@ MonoBehaviour:
     - label: Sell your blood
       effects:
       - kind: 2
-        amount: 5
+        amount: 2
         itemId: 
       - kind: 0
-        amount: 25
+        amount: 8
         itemId: 
     - label: Buy a tonic
       effects:
       - kind: 0
-        amount: -15
+        amount: -5
         itemId: 
       - kind: 1
-        amount: 10
+        amount: 4
         itemId: 
     - label: Walk away
       effects: []
@@ -106,12 +116,12 @@ MonoBehaviour:
     - label: Drink
       effects:
       - kind: 1
-        amount: 8
+        amount: 3
         itemId: 
     - label: Bottle some water
       effects:
       - kind: 0
-        amount: 5
+        amount: 2
         itemId: 
   - id: wandering_trader
     title: Wandering Trader
@@ -122,7 +132,7 @@ MonoBehaviour:
     - label: Buy the charm
       effects:
       - kind: 0
-        amount: -35
+        amount: -12
         itemId: 
       - kind: 5
         amount: 0
@@ -138,7 +148,7 @@ MonoBehaviour:
     - label: Pry it open
       effects:
       - kind: 2
-        amount: 8
+        amount: 3
         itemId: 
       - kind: 5
         amount: 0
@@ -158,21 +168,26 @@ MonoBehaviour:
         amount: 1
         itemId: 
       - kind: 3
-        amount: 8
+        amount: 3
         itemId: 
     - label: Leave
       effects: []
   shopOffers:
   - itemId: power_ring
     healAmount: 10
-    price: 60
+    price: 20
   - itemId: life_charm
     healAmount: 10
-    price: 45
+    price: 15
   - itemId: 
-    healAmount: 10
-    price: 40
+    healAmount: 4
+    price: 14
   handSize: 3
+  fixedHand: 1
+  fixedHandSizes: 020000000300000004000000
+  attackBonus2: 0
+  attackBonus3: 1
+  attackBonus4: 2
   blockWeight2: 4
   blockWeight3: 4
   blockWeight4: 2

@@ -39,11 +39,49 @@ namespace VoidConverter.Core
                 {
                     var type = layout.Types[x, y];
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
-                    cells[x, y] = new Cell { Type = type, Used = false, Power = power };
+                    // Empty cells start out spent, like a cell that was already activated.
+                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power };
                 }
             }
 
             VoidPower = rng.Next(settings.VoidPowerMin, settings.VoidPowerMax + 1);
+            BuffPower = settings.BuffPower;
+            AssignVoidKinds(settings, rng);
+        }
+
+        /// <summary>How much stronger a Buff void makes each monster next to it.</summary>
+        public int BuffPower { get; private set; }
+
+        // Hands out the special kinds to random void cells; the rest stay Normal.
+        void AssignVoidKinds(GridSettings settings, Random rng)
+        {
+            var voids = new List<Cell>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (cells[x, y].Type == CellType.Void) voids.Add(cells[x, y]);
+                }
+            }
+            for (int i = voids.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (voids[i], voids[j]) = (voids[j], voids[i]);
+            }
+
+            int next = 0;
+            void Give(VoidKind kind, int count)
+            {
+                for (int i = 0; i < count && next < voids.Count; i++)
+                {
+                    var cell = voids[next++];
+                    cell.Kind = kind;
+                    if (kind == VoidKind.Danger) cell.Hp = settings.DangerHp;
+                }
+            }
+            Give(VoidKind.Buff, settings.BuffCount);
+            Give(VoidKind.Spread, settings.SpreadCount);
+            Give(VoidKind.Danger, settings.DangerCount);
         }
 
         /// <summary>
@@ -53,8 +91,27 @@ namespace VoidConverter.Core
         public int VoidPower { get; private set; }
 
         /// <summary>
-        /// A block fits when every cell is inside the grid and not already activated.
-        /// Void cells can be covered again and again.
+        /// When true, a block may also cover cells that were already activated (and Empty cells). Those cells do
+        /// nothing, so a monster boxed in by spent cells can still be covered. When false, every covered cell must be fresh.
+        /// </summary>
+        public bool AllowOverlap { get; set; }
+
+        /// <summary>How many monster cells have not been activated yet.</summary>
+        public int CountUnusedMonsters()
+        {
+            int count = 0;
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (cells[x, y].Type == CellType.Monster && !cells[x, y].Used) count++;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// A block fits when every cell is inside the grid and (unless overlapping is allowed) not already activated.
         /// </summary>
         public bool CanPlace(Int2[] blockCells, int originX, int originY)
         {
@@ -64,14 +121,45 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) return false;
                 var cell = cells[x, y];
-                if (cell.Used && cell.Type != CellType.Void) return false;
+                if (cell.Used && !AllowOverlap) return false;
             }
             return true;
         }
 
-        /// <summary>Total power of the monster cells (not yet activated) that the block would cover.</summary>
+        /// <summary>
+        /// Power of a monster cell right now: its own plus the bonus of every standing Buff void around it.
+        /// Buff voids in <paramref name="covered"/> (cells a block is about to activate) no longer count.
+        /// </summary>
+        public int EffectivePower(int x, int y, HashSet<int> covered = null)
+        {
+            int power = cells[x, y].Power;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = x + dx, ny = y + dy;
+                    if (!InBounds(nx, ny)) continue;
+                    var n = cells[nx, ny];
+                    if (n.Type != CellType.Void || n.Kind != VoidKind.Buff || n.Used) continue;
+                    if (covered != null && covered.Contains(nx + ny * Width)) continue;
+                    power += BuffPower;
+                }
+            }
+            return power;
+        }
+
+        HashSet<int> CoveredSet(Int2[] blockCells, int originX, int originY)
+        {
+            var set = new HashSet<int>();
+            foreach (var c in blockCells) set.Add(originX + c.X + (originY + c.Y) * Width);
+            return set;
+        }
+
+        /// <summary>Total power of the monster cells (not yet activated) that the block would cover, buffs included.</summary>
         public int MonsterPowerUnder(Int2[] blockCells, int originX, int originY)
         {
+            var covered = CoveredSet(blockCells, originX, originY);
             int total = 0;
             foreach (var c in blockCells)
             {
@@ -79,9 +167,24 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) continue;
                 var cell = cells[x, y];
-                if (cell.Type == CellType.Monster && !cell.Used) total += cell.Power;
+                if (cell.Type == CellType.Monster && !cell.Used) total += EffectivePower(x, y, covered);
             }
             return total;
+        }
+
+        /// <summary>How many not-yet-activated void cells of the given kind the block would cover.</summary>
+        public int CountVoidKindUnder(Int2[] blockCells, int originX, int originY, VoidKind kind)
+        {
+            int count = 0;
+            foreach (var c in blockCells)
+            {
+                int x = originX + c.X;
+                int y = originY + c.Y;
+                if (!InBounds(x, y)) continue;
+                var cell = cells[x, y];
+                if (cell.Type == CellType.Void && cell.Kind == kind && !cell.Used) count++;
+            }
+            return count;
         }
 
         /// <summary>How many not-yet-activated cells of the given type the block would cover.</summary>
@@ -99,7 +202,7 @@ namespace VoidConverter.Core
             return count;
         }
 
-        /// <summary>The monster power of each void cell the block would cover (all equal to VoidPower), one entry per cell.</summary>
+        /// <summary>The monster power of each void cell the block would cover (all equal to VoidPower), one entry per cell. Only Normal voids roll a monster.</summary>
         public List<int> VoidPowersUnder(Int2[] blockCells, int originX, int originY)
         {
             var powers = new List<int>();
@@ -108,7 +211,7 @@ namespace VoidConverter.Core
                 int x = originX + c.X;
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) continue;
-                if (cells[x, y].Type == CellType.Void) powers.Add(VoidPower);
+                if (cells[x, y].Type == CellType.Void && cells[x, y].Kind == VoidKind.Normal && !cells[x, y].Used) powers.Add(VoidPower);
             }
             return powers;
         }
@@ -149,6 +252,60 @@ namespace VoidConverter.Core
             }
         }
 
+        /// <summary>
+        /// Hits a Danger void for <paramref name="damage"/>. Returns true if it broke (it is then locked).
+        /// </summary>
+        public bool DamageDanger(int x, int y, int damage)
+        {
+            var cell = cells[x, y];
+            if (cell.Type != CellType.Void || cell.Kind != VoidKind.Danger || cell.Used) return false;
+            cell.Hp -= damage;
+            if (cell.Hp > 0) return false;
+            cell.Hp = 0;
+            cell.Used = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Every standing Spread void contaminates one random cell next to it (not yet activated, not contaminated,
+        /// not another Spread void). Returns how many cells were contaminated.
+        /// </summary>
+        public int SpreadContamination(Random rng)
+        {
+            var sources = new List<(int x, int y)>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var c = cells[x, y];
+                    if (c.Type == CellType.Void && c.Kind == VoidKind.Spread && !c.Used) sources.Add((x, y));
+                }
+            }
+
+            int count = 0;
+            foreach (var (sx, sy) in sources)
+            {
+                var targets = new List<Cell>();
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+                        int nx = sx + dx, ny = sy + dy;
+                        if (!InBounds(nx, ny)) continue;
+                        var n = cells[nx, ny];
+                        if (n.Used || n.Contaminated) continue;
+                        if (n.Type == CellType.Void && n.Kind == VoidKind.Spread) continue;
+                        targets.Add(n);
+                    }
+                }
+                if (targets.Count == 0) continue;
+                targets[rng.Next(targets.Count)].Contaminated = true;
+                count++;
+            }
+            return count;
+        }
+
         /// <summary>Rolls a new shared void power from the player's current corruption.</summary>
         public void RerollVoidPower(PlayerStats player, VoidSettings settings, Random rng)
         {
@@ -180,16 +337,28 @@ namespace VoidConverter.Core
         {
             if (!CanPlace(blockCells, originX, originY)) return null;
 
+            var covered = CoveredSet(blockCells, originX, originY);
             var result = new PlacementResult();
             foreach (var c in blockCells)
             {
                 int x = originX + c.X;
                 int y = originY + c.Y;
                 var cell = cells[x, y];
-                if (cell.Type == CellType.Void) cell.ActivationCount++;
+                // A spent cell under the block (overlap) does nothing.
+                if (cell.Used) continue;
+                int power = cell.Type == CellType.Void ? VoidPower : EffectivePower(x, y, covered);
+                result.Activated.Add(new ActivatedCell
+                {
+                    X = x, Y = y, Type = cell.Type, Power = power,
+                    Kind = cell.Kind, Contaminated = cell.Contaminated,
+                });
+            }
+            // Lock the cells only after every power is read, so a buff covered together with its monsters is already gone.
+            foreach (var c in blockCells)
+            {
+                var cell = cells[originX + c.X, originY + c.Y];
+                if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger) cell.ActivationCount++;
                 else cell.Used = true;
-                int power = cell.Type == CellType.Void ? VoidPower : cell.Power;
-                result.Activated.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = power });
             }
             return result;
         }
@@ -201,6 +370,9 @@ namespace VoidConverter.Core
         // split among monster/gold/heal by these weights.
         public int VoidCount;
         public int MonsterMin;
+        // Above 0: exactly this many monster cells, gold and heal fill up to RewardMax, and the rest are Empty.
+        // 0 keeps the older rule (MonsterMin plus a weighted share of the leftover cells, no Empty cells).
+        public int MonsterCount;
         public int GoldMin;
         public int HealMin;
         // Gold and heal cells together never exceed this (0 = no cap). Cells over the cap become monsters.
@@ -218,6 +390,12 @@ namespace VoidConverter.Core
         public int MonsterPowerMax;
         public int VoidPowerMin;
         public int VoidPowerMax;
+        // How many of the void cells are each special kind (the rest are Normal).
+        public int BuffCount;
+        public int SpreadCount;
+        public int DangerCount;
+        public int BuffPower;
+        public int DangerHp;
     }
 
     public struct ActivatedCell
@@ -226,6 +404,8 @@ namespace VoidConverter.Core
         public int Y;
         public CellType Type;
         public int Power;
+        public VoidKind Kind;
+        public bool Contaminated;
     }
 
     public class PlacementResult

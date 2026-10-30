@@ -155,6 +155,8 @@ namespace VoidConverter.View
             // a monster each, so the win chance weighs every combination of their outcomes.
             if (valid)
             {
+                // The size bonus of the held block counts in the win chances below; HideGhost puts it back.
+                controller.Player.BlockBonus = controller.AttackBonusFor(cells.Length);
                 int fixedPower = controller.Grid.MonsterPowerUnder(cells, origin.X, origin.Y);
                 var voidPowers = controller.Grid.VoidPowersUnder(cells, origin.X, origin.Y);
                 float monsterChance = VoidRules.MonsterChance(controller.Player);
@@ -177,7 +179,10 @@ namespace VoidConverter.View
                     text += $"\nWin {Mathf.RoundToInt(win * 100f)}%";
                     ghostInfo.text = text;
                 }
+                string kindLine = VoidKindLine(cells, origin);
+                if (kindLine.Length > 0) ghostInfo.text += "\n" + kindLine;
                 ghostInfo.color = GridView.ChanceColor(win);
+                controller.Player.BlockBonus = 0;
                 // Fixed spot beside the grid, so it never covers the cells the player is judging.
                 float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + SidePanelGap;
                 ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
@@ -187,6 +192,20 @@ namespace VoidConverter.View
             {
                 ghostInfo.gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>One line about the special voids under the block (they have no contest of their own).</summary>
+        string VoidKindLine(Int2[] cells, Int2 origin)
+        {
+            var grid = controller.Grid;
+            var parts = new List<string>();
+            int buff = grid.CountVoidKindUnder(cells, origin.X, origin.Y, VoidKind.Buff);
+            int spread = grid.CountVoidKindUnder(cells, origin.X, origin.Y, VoidKind.Spread);
+            int danger = grid.CountVoidKindUnder(cells, origin.X, origin.Y, VoidKind.Danger);
+            if (buff > 0) parts.Add("Buff void removed");
+            if (spread > 0) parts.Add("Spread void removed");
+            if (danger > 0) parts.Add($"Danger void: hit for your ATK, ${config.voidDangerRewardGold} when it breaks");
+            return string.Join("\n", parts);
         }
 
         /// <summary>What the gold and heal cells under the block give, when it is placed (given the player survives).</summary>
@@ -253,6 +272,14 @@ namespace VoidConverter.View
 
                 var cells = hand.CellsOf(i);
                 if (cells == null) continue;
+
+                // Bigger blocks hit harder: say how much, under the block.
+                int bonus = controller.AttackBonusFor(cells.Length);
+                if (bonus > 0 || controller.Config.fixedHand)
+                {
+                    TextUtil.AddText(transform, "Block Bonus", center + new Vector2(0f, -config.handSlotSize * 0.5f + 0.25f),
+                        $"ATK +{bonus}", 48, 0.036f, bonus > 0 ? new Color(1f, 0.95f, 0.6f) : new Color(1f, 1f, 1f, 0.5f), 10);
+                }
 
                 int maxX = 0, maxY = 0;
                 foreach (var c in cells)

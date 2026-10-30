@@ -55,7 +55,16 @@ namespace VoidConverter.View
         {
             var p = controller.Player;
             stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}-{p.AttackMax}" +
-                         $"    Gold {p.Gold}    Blocks {controller.PlacementsUsed}/{controller.MaxPlacements}";
+                         $"    Gold {p.Gold}    ";
+            if (controller.ClearRule && controller.Phase == RunPhase.Playing)
+            {
+                stats.text += $"Turn {controller.PlacementsUsed}/{controller.TurnLimit}    Monsters left {controller.MonstersLeft}" +
+                              (controller.OvertimeSteps > 0 ? $"    OVERTIME +{controller.OvertimeSteps * controller.Config.overtimeGrowth}" : "");
+            }
+            else
+            {
+                stats.text += $"Blocks {controller.PlacementsUsed}/{controller.MaxPlacements}";
+            }
             stats.color = p.IsDead ? DeadColor : StatsColor;
 
             int monsterPercent = Mathf.RoundToInt(VoidRules.MonsterChance(p) * 100f);

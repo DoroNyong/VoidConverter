@@ -41,18 +41,34 @@ namespace VoidConverter.Game
         public int PlacementsUsed { get; private set; }
         public int MaxPlacements => config.maxPlacements;
         public int MinPlacementsToEnd => config.minPlacementsToEnd;
-        public bool OutOfPlacements => PlacementsUsed >= MaxPlacements;
+        public bool OutOfPlacements => !ClearRule && PlacementsUsed >= MaxPlacements;
 
-        /// <summary>The round can be ended by hand after enough blocks were placed.</summary>
-        public bool CanEndRound => Phase == RunPhase.Playing && !IsBossStage && PlacementsUsed >= MinPlacementsToEnd;
+        /// <summary>The Clear Rule is on: a round ends when every monster is covered.</summary>
+        public bool ClearRule => config.clearAllRule;
+        /// <summary>Clear Rule: blocks that may be placed before overtime starts.</summary>
+        public int TurnLimit => config.clearTurnLimit;
+        /// <summary>Clear Rule: monster cells still on the board.</summary>
+        public int MonstersLeft => Grid.CountUnusedMonsters();
+        /// <summary>Clear Rule: how many times the monsters grew from overtime in this round.</summary>
+        public int OvertimeSteps { get; private set; }
+
+        /// <summary>The attack bonus a block with this many cells gets.</summary>
+        public int AttackBonusFor(int cellCount) => config.AttackBonusFor(cellCount);
+
+        /// <summary>The round can be ended by hand after enough blocks were placed (older rule only).</summary>
+        public bool CanEndRound => !ClearRule && Phase == RunPhase.Playing && !IsBossStage && PlacementsUsed >= MinPlacementsToEnd;
 
         /// <summary>True while the boss stage's board is being played.</summary>
         public bool IsBossStage => Phase == RunPhase.Playing && CurrentStage == StageType.Boss;
-        /// <summary>Blocks the player has to place in the boss stage before the boss can be defeated.</summary>
+        /// <summary>Blocks the player has to place in the boss stage before the boss can be defeated (older rule only).</summary>
         public int BossHoldTarget => config.bossHoldPlacements;
-        /// <summary>The boss can be defeated: enough blocks were placed (or nothing more fits).</summary>
+        /// <summary>
+        /// The boss can be defeated: with the Clear Rule every monster is covered; otherwise enough blocks were placed
+        /// (or nothing more fits).
+        /// </summary>
         public bool BossReady => IsBossStage && !Player.IsDead &&
-            (PlacementsUsed >= BossHoldTarget || OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere));
+            (ClearRule ? MonstersLeft == 0
+                       : PlacementsUsed >= BossHoldTarget || OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere));
 
         /// <summary>Summary of what the last action did, shown in the HUD.</summary>
         public string Message { get; private set; } = "";
@@ -192,14 +208,15 @@ namespace VoidConverter.Game
 
         void StartRound()
         {
-            Grid = new Grid(config.gridWidth, config.gridHeight);
+            Grid = new Grid(config.gridWidth, config.gridHeight) { AllowOverlap = config.clearAllRule };
             Grid.Generate(config.ToGridSettings(), rng);
             if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
             // The first void power comes from the current corruption, which carries over between rounds.
             Grid.RerollVoidPower(Player, config.ToVoidSettings(), rng);
-            Hand = new Hand(config.handSize);
+            Hand = new Hand(config.handSize, config.FixedHandSizesOrNull());
             Hand.Fill(config.ToBlockSettings(), rng, Grid.CanPlaceAnywhere);
             PlacementsUsed = 0;
+            OvertimeSteps = 0;
         }
 
         /// <summary>
@@ -330,12 +347,20 @@ namespace VoidConverter.Game
             var result = Grid.Place(cells, originX, originY);
             if (result == null) return false;
 
+            // A bigger block hits harder, for this placement's contest and danger hits only.
+            int sizeBonus = config.AttackBonusFor(cells.Length);
+            Player.BlockBonus = sizeBonus;
+
             var voidSettings = config.ToVoidSettings();
             float monsterChance = VoidRules.MonsterChance(Player);
 
             int totalPower = 0, monsters = 0, goldCells = 0, healCells = 0, voidCells = 0, voidMonsters = 0, voidRewards = 0;
+            // Every void cell raises corruption by 1, and so does a contaminated cell of any type.
+            int corruptionGain = 0;
+            var dangers = new List<ActivatedCell>();
             foreach (var cell in result.Activated)
             {
+                if (cell.Contaminated) corruptionGain++;
                 switch (cell.Type)
                 {
                     case CellType.Monster:
@@ -349,6 +374,10 @@ namespace VoidConverter.Game
                         healCells++;
                         break;
                     case CellType.Void:
+                        corruptionGain++;
+                        // Buff and Spread voids only vanish when covered. A Danger void is fought below.
+                        if (cell.Kind == VoidKind.Danger) dangers.Add(cell);
+                        if (cell.Kind != VoidKind.Normal) break;
                         voidCells++;
                         if (rng.NextDouble() < monsterChance)
                         {
@@ -363,12 +392,12 @@ namespace VoidConverter.Game
                 }
             }
 
-            Player.AddCorruption(voidCells);
+            Player.AddCorruption(corruptionGain);
 
             int monstersTotal = monsters + voidMonsters;
             FightResult? fight = monstersTotal > 0 ? Combat.Fight(Player, totalPower, rng) : (FightResult?)null;
 
-            int heal = 0, rewardGold = 0, killGold = 0;
+            int heal = 0, rewardGold = 0, killGold = 0, dangerHit = 0, dangersBroken = 0;
             if (!Player.IsDead)
             {
                 int before = Player.Hp;
@@ -377,17 +406,44 @@ namespace VoidConverter.Game
 
                 rewardGold = (goldCells + voidRewards) * config.goldCellReward;
                 if (fight.HasValue && fight.Value.Won) killGold = Mathf.RoundToInt(totalPower * config.goldPerMonsterPower);
+
+                // Danger voids take the player's attack roll as damage (the contest's roll when there was one).
+                if (dangers.Count > 0)
+                {
+                    dangerHit = fight.HasValue ? fight.Value.Roll : rng.Next(Player.AttackMin, Player.AttackMax + 1);
+                    foreach (var d in dangers)
+                    {
+                        if (Grid.DamageDanger(d.X, d.Y, dangerHit)) dangersBroken++;
+                    }
+                    rewardGold += dangersBroken * config.voidDangerRewardGold;
+                }
                 Player.AddGold(rewardGold + killGold);
             }
 
+            Player.BlockBonus = 0;
             Grid.RerollVoidPower(Player, voidSettings, rng);
+            // Spread voids that survived this turn contaminate their neighbours.
+            if (!Player.IsDead) Grid.SpreadContamination(rng);
             // The longer the player takes to hold out in the boss stage, the stronger the monsters left on the board.
             if (CurrentStage == StageType.Boss && !Player.IsDead) Grid.GrowMonsters(config.bossMonsterGrowth);
 
             PlacementsUsed++;
+            // Overtime (Clear Rule): once the turn limit is used up, every block placed while monsters remain makes them stronger.
+            bool overtimeGrew = false;
+            if (ClearRule && !Player.IsDead && PlacementsUsed >= TurnLimit && MonstersLeft > 0)
+            {
+                Grid.GrowMonsters(config.overtimeGrowth);
+                OvertimeSteps++;
+                overtimeGrew = true;
+            }
             Hand.UseSelected();
             Hand.Fill(config.ToBlockSettings(), rng, Grid.CanPlaceAnywhere);
-            Message = Describe(fight, monstersTotal, voidCells, voidMonsters, voidRewards, heal, rewardGold, killGold);
+            Message = Describe(fight, monstersTotal, voidCells, voidMonsters, voidRewards, heal, rewardGold, killGold, sizeBonus);
+            if (overtimeGrew) Message += $"\nOVERTIME: the monsters left grow +{config.overtimeGrowth}";
+            if (dangers.Count > 0 && !Player.IsDead)
+            {
+                Message += dangersBroken > 0 ? $"\nDanger void hit for {dangerHit}: {dangersBroken} broke" : $"\nDanger void hit for {dangerHit}";
+            }
 
             // The round ends when the player falls, the placements run out, or nothing in the hand fits any more.
             if (Player.IsDead)
@@ -399,6 +455,14 @@ namespace VoidConverter.Game
             {
                 // The boss stage has no round end: it ends when the player defeats the boss.
                 if (BossReady) Message += "\nThe boss is open! Defeat it.";
+            }
+            else if (ClearRule)
+            {
+                if (MonstersLeft == 0)
+                {
+                    Message += $"\nStage {Stage} complete (every monster cleared)";
+                    FinishRound();
+                }
             }
             else if (OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere))
             {
@@ -431,7 +495,7 @@ namespace VoidConverter.Game
         }
 
         string Describe(FightResult? fight, int monsters, int voidCells, int voidMonsters, int voidRewards,
-            int heal, int rewardGold, int killGold)
+            int heal, int rewardGold, int killGold, int sizeBonus)
         {
             var lines = new List<string>();
 
@@ -439,7 +503,8 @@ namespace VoidConverter.Game
             {
                 var f = fight.Value;
                 string outcome = f.Won ? "WIN" : $"LOSE -{f.Damage}";
-                lines.Add($"ATK {f.Roll} vs {f.MonsterPower} ({monsters} monster{(monsters > 1 ? "s" : "")}): {outcome}");
+                string bonus = sizeBonus > 0 ? $" (block +{sizeBonus})" : "";
+                lines.Add($"ATK {f.Roll}{bonus} vs {f.MonsterPower} ({monsters} monster{(monsters > 1 ? "s" : "")}): {outcome}");
             }
             else
             {

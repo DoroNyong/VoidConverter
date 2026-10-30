@@ -81,8 +81,17 @@ namespace VoidConverter.View
             else if (controller.IsBossStage)
             {
                 bool ready = controller.BossReady;
-                label.text = ready ? "Defeat\nBoss" : $"Hold out\n({controller.PlacementsUsed}/{controller.BossHoldTarget})";
+                string waiting = controller.ClearRule
+                    ? $"Monsters\nleft {controller.MonstersLeft}"
+                    : $"Hold out\n({controller.PlacementsUsed}/{controller.BossHoldTarget})";
+                label.text = ready ? "Defeat\nBoss" : waiting;
                 background.color = ready ? RestartColor : DisabledColor;
+            }
+            else if (controller.ClearRule)
+            {
+                // The round ends by itself once every monster is covered; there is no button to press.
+                label.text = $"Monsters\nleft {controller.MonstersLeft}";
+                background.color = DisabledColor;
             }
             else if (controller.CanEndRound)
             {

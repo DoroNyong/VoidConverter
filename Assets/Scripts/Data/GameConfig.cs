@@ -91,8 +91,10 @@ namespace VoidConverter.Data
         [Header("Cell Counts")]
         [Tooltip("Exactly this many void cells per board.")]
         public int voidCount = 5;
-        [Tooltip("Every board has at least this many monster cells.")]
+        [Tooltip("Every board has at least this many monster cells (used when Monster Count is 0).")]
         public int monsterMin = 10;
+        [Tooltip("Above 0: exactly this many monster cells. Gold and heal fill up to Reward Max and the rest of the board is empty. 0 = the older rule (Monster Min plus a weighted share of the leftover cells).")]
+        public int monsterCount = 10;
         [Tooltip("Every board has at least this many gold cells.")]
         public int goldMin = 2;
         [Tooltip("Every board has at least this many heal cells.")]
@@ -113,33 +115,53 @@ namespace VoidConverter.Data
         public int monsterMaxCluster = 8;
 
         [Header("Monsters")]
-        public int monsterPowerMin = 3;
-        public int monsterPowerMax = 9;
+        public int monsterPowerMin = 2;
+        public int monsterPowerMax = 4;
 
         [Header("Player")]
-        public int playerMaxHp = 30;
-        public int playerAttackMin = 5;
-        public int playerAttackMax = 12;
+        public int playerMaxHp = 10;
+        public int playerAttackMin = 2;
+        public int playerAttackMax = 4;
 
         [Header("Void")]
         [Tooltip("Corruption cap. Monster chance of a void cell = corruption / this.")]
         public int maxCorruption = 10;
         [Tooltip("Base range of the monster power a void cell would spawn.")]
-        public int voidPowerMin = 3;
-        public int voidPowerMax = 9;
+        public int voidPowerMin = 2;
+        public int voidPowerMax = 4;
         [Tooltip("The void power range shifts up by floor(corruption * this).")]
-        public float voidPowerPerCorruption = 0.5f;
+        public float voidPowerPerCorruption = 0.2f;
+
+        [Header("Void Kinds")]
+        [Tooltip("How many of the void cells on a board are each special kind. The rest are Normal.")]
+        public int voidBuffCount = 1;
+        public int voidSpreadCount = 1;
+        public int voidDangerCount = 1;
+        [Tooltip("Buff void: each monster next to it gets this much stronger while it stands.")]
+        public int voidBuffPower = 1;
+        [Tooltip("Danger void: hit points. Each block placed on it hits for the player's attack roll.")]
+        public int voidDangerHp = 6;
+        [Tooltip("Danger void: gold paid when it breaks.")]
+        public int voidDangerRewardGold = 3;
 
         [Header("Rewards")]
         [Tooltip("Gold gained for beating monsters = their summed power * this (only when the block's contest is won).")]
         public float goldPerMonsterPower = 1f;
         [Tooltip("Gold from a gold cell, and from a void cell that turned out to be a reward.")]
-        public int goldCellReward = 2;
+        public int goldCellReward = 1;
         [Tooltip("HP restored by a heal cell.")]
-        public int healCellAmount = 2;
+        public int healCellAmount = 1;
+
+        [Header("Clear Rule")]
+        [Tooltip("On: a Combat round ends when every monster cell is covered (a lost fight still removes the monster), blocks may overlap spent cells, and Max Placements / manual end do not apply. Off: the older round rules below.")]
+        public bool clearAllRule = true;
+        [Tooltip("Clear Rule: the blocks placed in one round before overtime starts.")]
+        public int clearTurnLimit = 5;
+        [Tooltip("Clear Rule: after every block placed at or past the turn limit, each monster left gets this much stronger.")]
+        public int overtimeGrowth = 1;
 
         [Header("Round")]
-        [Tooltip("How many blocks the player may place in one round.")]
+        [Tooltip("How many blocks the player may place in one round (older rule, ignored by the Clear Rule).")]
         public int maxPlacements = 6;
         [Tooltip("The run is cleared after the last stage. Combat and Boss stages play a grid round.")]
         public List<StageType> stages = new List<StageType>
@@ -155,11 +177,11 @@ namespace VoidConverter.Data
         [Header("Boss (MVP, to be redesigned)")]
         [Tooltip("The boss can be defeated once this many blocks were placed in the boss stage.")]
         public int bossHoldPlacements = 5;
-        [Tooltip("Every monster still on the board gets this much stronger after each block placed in the boss stage.")]
-        public int bossMonsterGrowth = 1;
+        [Tooltip("Every monster still on the board gets this much stronger after each block placed in the boss stage (on top of the Clear Rule's overtime). 1 made the boss unwinnable with the Clear Rule, so it is 0.")]
+        public int bossMonsterGrowth = 0;
         [Tooltip("This many monsters on the boss board are replaced by strong ones.")]
-        public int bossStrongMonsterCount = 2;
-        public int bossStrongMonsterPower = 15;
+        public int bossStrongMonsterCount = 3;
+        public int bossStrongMonsterPower = 5;
 
         [Header("Screen Transition")]
         [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
@@ -171,7 +193,7 @@ namespace VoidConverter.Data
         public List<ItemData> items = new List<ItemData>
         {
             new ItemData { id = "power_ring", displayName = "Power Ring", attackBonus = 1, maxHpBonus = 0 },
-            new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 5 },
+            new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 2 },
         };
 
         [Header("Events")]
@@ -185,8 +207,8 @@ namespace VoidConverter.Data
                 description = "You find a deserted camp.\nChoose one.",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Take the coins", Effect(EventEffectKind.Gold, 10)),
-                    Choice("Rest by the fire", Effect(EventEffectKind.Heal, 5)),
+                    Choice("Take the coins", Effect(EventEffectKind.Gold, 4)),
+                    Choice("Rest by the fire", Effect(EventEffectKind.Heal, 2)),
                 },
             },
             new EventData
@@ -196,8 +218,8 @@ namespace VoidConverter.Data
                 description = "A peddler grins at you.\n\"Everything has a price.\"",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Sell your blood", Effect(EventEffectKind.Damage, 5), Effect(EventEffectKind.Gold, 25)),
-                    Choice("Buy a tonic", Effect(EventEffectKind.Gold, -15), Effect(EventEffectKind.Heal, 10)),
+                    Choice("Sell your blood", Effect(EventEffectKind.Damage, 2), Effect(EventEffectKind.Gold, 8)),
+                    Choice("Buy a tonic", Effect(EventEffectKind.Gold, -5), Effect(EventEffectKind.Heal, 4)),
                     Choice("Walk away"),
                 },
             },
@@ -208,8 +230,8 @@ namespace VoidConverter.Data
                 description = "Clean water bubbles from the ground.",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Drink", Effect(EventEffectKind.Heal, 8)),
-                    Choice("Bottle some water", Effect(EventEffectKind.Gold, 5)),
+                    Choice("Drink", Effect(EventEffectKind.Heal, 3)),
+                    Choice("Bottle some water", Effect(EventEffectKind.Gold, 2)),
                 },
             },
             new EventData
@@ -219,7 +241,7 @@ namespace VoidConverter.Data
                 description = "A trader opens her pack.\n\"A charm for a fair price?\"",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Buy the charm", Effect(EventEffectKind.Gold, -35), GainItem("life_charm")),
+                    Choice("Buy the charm", Effect(EventEffectKind.Gold, -12), GainItem("life_charm")),
                     Choice("Walk away"),
                 },
             },
@@ -230,7 +252,7 @@ namespace VoidConverter.Data
                 description = "A rusty chest, and the lock bites.\nSomething glints inside.",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Pry it open", Effect(EventEffectKind.Damage, 8), GainItem("power_ring")),
+                    Choice("Pry it open", Effect(EventEffectKind.Damage, 3), GainItem("power_ring")),
                     Choice("Leave it"),
                 },
             },
@@ -241,7 +263,7 @@ namespace VoidConverter.Data
                 description = "The altar hungers for an offering.\nIt will take one of your items.",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Make an offering", Effect(EventEffectKind.LoseItem, 1), Effect(EventEffectKind.MaxHp, 8)),
+                    Choice("Make an offering", Effect(EventEffectKind.LoseItem, 1), Effect(EventEffectKind.MaxHp, 3)),
                     Choice("Leave"),
                 },
             },
@@ -258,13 +280,20 @@ namespace VoidConverter.Data
         [Tooltip("The fixed shelf shown at every Shop stage.")]
         public List<ShopOfferData> shopOffers = new List<ShopOfferData>
         {
-            new ShopOfferData { itemId = "power_ring", price = 60 },
-            new ShopOfferData { itemId = "life_charm", price = 45 },
-            new ShopOfferData { itemId = "", healAmount = 10, price = 40 },
+            new ShopOfferData { itemId = "power_ring", price = 20 },
+            new ShopOfferData { itemId = "life_charm", price = 15 },
+            new ShopOfferData { itemId = "", healAmount = 4, price = 14 },
         };
 
         [Header("Blocks")]
         public int handSize = 3;
+        [Tooltip("On: slot i always holds a shape with Fixed Hand Sizes[i] cells (a used slot refills with the same size). Off: the weights below decide.")]
+        public bool fixedHand = true;
+        public List<int> fixedHandSizes = new List<int> { 2, 3, 4 };
+        [Tooltip("Attack added to the roll of a block with this many cells (a bigger block hits harder).")]
+        public int attackBonus2 = 0;
+        public int attackBonus3 = 1;
+        public int attackBonus4 = 2;
         [Tooltip("Probability weight of 2-cell blocks (split evenly among that size's shapes).")]
         public float blockWeight2 = 4f;
         [Tooltip("Probability weight of 3-cell blocks.")]
@@ -281,6 +310,7 @@ namespace VoidConverter.Data
         {
             VoidCount = voidCount,
             MonsterMin = monsterMin,
+            MonsterCount = monsterCount,
             GoldMin = goldMin,
             HealMin = healMin,
             RewardMax = rewardMax,
@@ -294,6 +324,11 @@ namespace VoidConverter.Data
             MonsterPowerMax = monsterPowerMax,
             VoidPowerMin = voidPowerMin,
             VoidPowerMax = voidPowerMax,
+            BuffCount = voidBuffCount,
+            SpreadCount = voidSpreadCount,
+            DangerCount = voidDangerCount,
+            BuffPower = voidBuffPower,
+            DangerHp = voidDangerHp,
         };
 
         public VoidSettings ToVoidSettings() => new VoidSettings
@@ -338,6 +373,21 @@ namespace VoidConverter.Data
         }
 
         public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);
+
+        /// <summary>The attack bonus of a block with this many cells.</summary>
+        public int AttackBonusFor(int cellCount)
+        {
+            switch (cellCount)
+            {
+                case 2: return attackBonus2;
+                case 3: return attackBonus3;
+                case 4: return attackBonus4;
+                default: return 0;
+            }
+        }
+
+        /// <summary>The per-slot block sizes of a fixed hand, or null when the hand is drawn at random.</summary>
+        public int[] FixedHandSizesOrNull() => fixedHand && fixedHandSizes != null && fixedHandSizes.Count > 0 ? fixedHandSizes.ToArray() : null;
 
         public BlockSettings ToBlockSettings() => new BlockSettings
         {

@@ -24,6 +24,8 @@ namespace VoidConverter.EditorTools
             Passive,
             // Weighs expected gold and healing against expected damage and the corruption it would add.
             Greedy,
+            // Clear Rule only: pushes to cover many monsters per block, accepting more damage to finish early.
+            Rusher,
         }
 
         public class Result
@@ -35,6 +37,26 @@ namespace VoidConverter.EditorTools
             public double TotalHpLeftOnClear;
             public double TotalGold;
             public int[] DeathsByRound;
+            // Clear Rule: finished grid rounds, the blocks they took and the overtime steps they grew through.
+            public int Rounds;
+            public double TotalTurns;
+            public double TotalOvertime;
+        }
+
+        /// <summary>One compact line: clear rate and the grid-round length of each bot, to sweep settings quickly.</summary>
+        public static string Brief(Action<GameConfig> tweak, int runs, string label)
+        {
+            var sb = new StringBuilder(label + " :");
+            foreach (Bot bot in new[] { Bot.Passive, Bot.Greedy, Bot.Rusher })
+            {
+                var cfg = ScriptableObject.CreateInstance<GameConfig>();
+                tweak?.Invoke(cfg);
+                var r = Run(cfg, bot, runs, 1234);
+                double rounds = Math.Max(1, r.Rounds);
+                sb.Append($"  {bot.ToString()[0]} {r.Cleared * 100f / r.Runs:0}% (t{r.TotalTurns / rounds:0.0} ot{r.TotalOvertime / rounds:0.0})");
+                UnityEngine.Object.DestroyImmediate(cfg);
+            }
+            return sb.ToString();
         }
 
         /// <summary>Whether the bots spend their gold at the shop. Turn off to measure a run without shopping.</summary>
@@ -73,7 +95,7 @@ namespace VoidConverter.EditorTools
                 go.SetActive(true);                      // Awake runs here, with the config above
 
                 int guard = 0;
-                while ((gc.Phase == RunPhase.Playing || gc.Phase == RunPhase.Event || gc.Phase == RunPhase.Shop) && guard++ < 200)
+                while ((gc.Phase == RunPhase.Playing || gc.Phase == RunPhase.Event || gc.Phase == RunPhase.Shop) && guard++ < 600)
                 {
                     // Between combats the bots pick an event choice, shop (if BotsBuy) and press Continue.
                     if (gc.Phase != RunPhase.Playing)
@@ -89,10 +111,18 @@ namespace VoidConverter.EditorTools
                         gc.PressMainButton();
                         continue;
                     }
+                    int turnsBefore = gc.PlacementsUsed, overtimeBefore = gc.OvertimeSteps, stageBefore = gc.Stage;
                     if (!PlaceOne(gc, cfg, bot, rng))
                     {
                         if (gc.CanEndRound) gc.PressMainButton();
                         else break;
+                    }
+                    else if (gc.Stage != stageBefore || gc.Phase != RunPhase.Playing || gc.BossReady)
+                    {
+                        // The round ended with this block (a cleared board or a death).
+                        result.Rounds++;
+                        result.TotalTurns += turnsBefore + 1;
+                        result.TotalOvertime += overtimeBefore;
                     }
                 }
 
@@ -213,7 +243,10 @@ namespace VoidConverter.EditorTools
                                 continue;
                             }
 
+                            // The odds depend on the size bonus of the block being considered.
+                            player.BlockBonus = gc.AttackBonusFor(cells.Length);
                             double score = Score(grid, player, cfg, bot, cells, x, y, chance) + rng.NextDouble() * 1e-3;
+                            player.BlockBonus = 0;
                             if (score > bestScore)
                             {
                                 bestScore = score;
@@ -249,10 +282,26 @@ namespace VoidConverter.EditorTools
             int healCells = grid.CountUnder(cells, x, y, CellType.Heal);
             double rewardGold = (goldCells + voidCells * (1 - chance)) * cfg.goldCellReward;
             double heal = Math.Min(player.MaxHp - player.Hp, healCells * cfg.healCellAmount);
-            double corruptionCost = voidCells * (0.5 + 0.3 * player.Corruption);
+            // Special voids: covering a buff/spread void removes the threat; a danger void pays when it breaks
+            // (about one hit in two of the bot's reckoning). Each costs corruption like any void.
+            int buffCells = grid.CountVoidKindUnder(cells, x, y, VoidKind.Buff);
+            int spreadCells = grid.CountVoidKindUnder(cells, x, y, VoidKind.Spread);
+            int dangerCells = grid.CountVoidKindUnder(cells, x, y, VoidKind.Danger);
+            rewardGold += 3 * buffCells + 3 * spreadCells + 0.5 * dangerCells * cfg.voidDangerRewardGold;
+            double corruptionCost = (voidCells + buffCells + spreadCells + dangerCells) * (0.5 + 0.3 * player.Corruption);
 
-            if (bot == Bot.Passive) return -10 * expectedDamage + rewardGold + heal - corruptionCost;
-            return rewardGold + expectedKillGold + heal - 1.5 * expectedDamage - corruptionCost;
+            // Clear Rule: every monster has to be covered some time, so covering one is worth progress. The three
+            // styles differ in how much damage they accept for it (the Rusher takes the most).
+            double progress = 0;
+            if (cfg.clearAllRule)
+            {
+                int covered = grid.CountUnder(cells, x, y, CellType.Monster);
+                progress = covered * (bot == Bot.Passive ? 20 : bot == Bot.Rusher ? 30 : 6);
+            }
+
+            if (bot == Bot.Passive) return -10 * expectedDamage + rewardGold + heal - corruptionCost + progress;
+            if (bot == Bot.Rusher) return -1 * expectedDamage + rewardGold + heal - corruptionCost + progress;
+            return rewardGold + expectedKillGold + heal - 1.5 * expectedDamage - corruptionCost + progress;
         }
 
         static double ExpectedDamage(PlayerStats player, int power)

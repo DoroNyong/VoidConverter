@@ -17,8 +17,14 @@ namespace VoidConverter.Core
 
         public int MaxHp => baseMaxHp + bonusMaxHp + SumOf(i => i.MaxHpBonus);
         public int Hp { get; private set; }
-        public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus);
-        public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus);
+        /// <summary>
+        /// Attack bonus of the block being placed or considered (bigger blocks hit harder). The caller sets it just
+        /// before a fight or an odds calculation and puts it back to 0 afterwards.
+        /// </summary>
+        public int BlockBonus { get; set; }
+
+        public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus) + BlockBonus;
+        public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus) + BlockBonus;
 
         /// <summary>Rises whenever void cells are activated. Higher corruption makes void cells spawn monsters.</summary>
         public int Corruption { get; private set; }

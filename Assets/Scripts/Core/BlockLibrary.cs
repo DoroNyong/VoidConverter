@@ -51,6 +51,14 @@ namespace VoidConverter.Core
             return picked ?? PickWeighted(settings, rng, new HashSet<BlockShape>());
         }
 
+        /// <summary>A uniformly random shape of exactly this many cells (null if there is none).</summary>
+        public static BlockShape PickOfSize(int size, Random rng)
+        {
+            var candidates = new List<BlockShape>();
+            foreach (var shape in All) if (shape.Size == size) candidates.Add(shape);
+            return candidates.Count == 0 ? null : candidates[rng.Next(candidates.Count)];
+        }
+
         static BlockShape PickWeighted(BlockSettings settings, Random rng, HashSet<BlockShape> excluded)
         {
             var weights = new float[All.Length];

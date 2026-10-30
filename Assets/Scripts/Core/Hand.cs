@@ -13,11 +13,18 @@ namespace VoidConverter.Core
         public int[] Rotations { get; }
         public int Selected { get; private set; } = -1;
 
-        public Hand(int size)
+        // When set, slot i always holds a shape of exactly this many cells (a used slot is refilled with the same size).
+        readonly int[] fixedSizes;
+
+        public Hand(int size, int[] fixedSizes = null)
         {
             Slots = new BlockShape[size];
             Rotations = new int[size];
+            this.fixedSizes = fixedSizes != null && fixedSizes.Length > 0 ? fixedSizes : null;
         }
+
+        /// <summary>The cell count slot i is fixed to, or 0 when the hand is drawn at random.</summary>
+        public int FixedSizeOf(int index) => fixedSizes == null ? 0 : fixedSizes[index % fixedSizes.Length];
 
         /// <summary>
         /// Fills empty slots. When <paramref name="canPlace"/> is given and nothing in the hand fits the board,
@@ -26,6 +33,17 @@ namespace VoidConverter.Core
         /// </summary>
         public void Fill(BlockSettings settings, Random rng, Func<BlockShape, bool> canPlace = null)
         {
+            if (fixedSizes != null)
+            {
+                for (int i = 0; i < Slots.Length; i++)
+                {
+                    if (Slots[i] != null) continue;
+                    Slots[i] = BlockLibrary.PickOfSize(FixedSizeOf(i), rng);
+                    Rotations[i] = 0;
+                }
+                return;
+            }
+
             var filled = new List<int>();
             for (int i = 0; i < Slots.Length; i++)
             {

@@ -71,7 +71,9 @@ namespace VoidConverter.View
             body.color = ready ? ReadyColor : WaitingColor;
             status.text = ready
                 ? "Click to\ndefeat!"
-                : $"Hold out\n{Mathf.Min(controller.PlacementsUsed, controller.BossHoldTarget)}/{controller.BossHoldTarget}";
+                : controller.ClearRule
+                    ? $"Monsters\nleft {controller.MonstersLeft}"
+                    : $"Hold out\n{Mathf.Min(controller.PlacementsUsed, controller.BossHoldTarget)}/{controller.BossHoldTarget}";
         }
     }
 }

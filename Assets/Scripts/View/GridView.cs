@@ -13,7 +13,15 @@ namespace VoidConverter.View
         static readonly Color HealColor = new Color(0.3f, 0.75f, 0.35f);
         static readonly Color RewardLabelColor = new Color(1f, 1f, 1f, 0.9f);
         static readonly Color VoidColor = new Color(0.55f, 0.3f, 0.85f);
+        // Empty cells are spent from the start, so this is shown dimmed like any used cell.
+        static readonly Color EmptyColor = new Color(0.6f, 0.62f, 0.7f);
         static readonly Color VoidPowerColor = new Color(1f, 1f, 1f, 0.32f);
+        static readonly Color BuffVoidColor = new Color(1f, 0.95f, 0.3f);
+        static readonly Color SpreadVoidColor = new Color(0.5f, 1f, 0.25f);
+        static readonly Color DangerVoidColor = new Color(0.95f, 0.15f, 0.15f);
+        // A special void is drawn as a purple frame around its kind color, so it still reads as a void.
+        const float VoidInnerScale = 0.72f;
+        const float ContaminationScale = 0.28f;
         const float UsedDim = 0.3f;
 
         const float CameraMargin = 0.8f;
@@ -76,16 +84,35 @@ namespace VoidConverter.View
                 {
                     var cell = grid[x, y];
                     Color color = ColorOf(cell.Type);
-                    if (cell.Used && cell.Type != CellType.Void) color *= UsedDim;
+                    if (cell.Used) color *= UsedDim;
                     color.a = 1f;
                     Vector2 center = origin + new Vector2(x * Step, y * Step);
                     SpriteUtil.AddSquare(transform, $"Cell {x},{y}", center, config.cellSize, color, 0);
+
+                    if (cell.Type == CellType.Void && !cell.Used && cell.Kind != VoidKind.Normal)
+                    {
+                        SpriteUtil.AddSquare(transform, $"Void Kind {x},{y}", center, config.cellSize * VoidInnerScale, KindColor(cell.Kind), 1);
+                    }
+                    // A contaminated cell keeps its look, with a small marker in the corner.
+                    if (cell.Contaminated && !cell.Used)
+                    {
+                        float corner = config.cellSize * 0.5f - config.cellSize * ContaminationScale * 0.5f;
+                        SpriteUtil.AddSquare(transform, $"Contaminated {x},{y}", center + new Vector2(corner, corner), config.cellSize * ContaminationScale, SpreadVoidColor, 2);
+                    }
 
                     // Monster power is public. Locked cells show nothing. The odds depend on which monsters a block
                     // covers together, so they are shown on the drag ghost rather than per cell.
                     if (cell.Type == CellType.Monster && !cell.Used)
                     {
-                        TextUtil.AddText(transform, "Power", center, cell.Power.ToString(), 64, 0.07f, Color.white, 10);
+                        TextUtil.AddText(transform, "Power", center, grid.EffectivePower(x, y).ToString(), 64, 0.07f, Color.white, 10);
+                    }
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !cell.Used)
+                    {
+                        TextUtil.AddText(transform, "Danger HP", center, cell.Hp.ToString(), 64, 0.07f, Color.white, 10);
+                    }
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Buff && !cell.Used)
+                    {
+                        TextUtil.AddText(transform, "Buff Power", center, "+" + grid.BuffPower, 64, 0.06f, Color.black, 10);
                     }
                     // Reward cells say what they give. Locked cells show nothing.
                     else if (cell.Type == CellType.Gold && !cell.Used)
@@ -97,7 +124,7 @@ namespace VoidConverter.View
                         TextUtil.AddText(transform, "Heal Amount", center, "+" + config.healCellAmount + " HP", 64, 0.045f, RewardLabelColor, 10);
                     }
                     // Every void cell shows, faintly, the same power: the monster it would spawn. It re-rolls after every placement.
-                    else if (cell.Type == CellType.Void)
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Normal && !cell.Used)
                     {
                         TextUtil.AddText(transform, "Void Power", center, grid.VoidPower.ToString(), 64, 0.07f, VoidPowerColor, 10);
                     }
@@ -137,6 +164,17 @@ namespace VoidConverter.View
             return new Color(1f, 0.8f, 0.7f);
         }
 
+        static Color KindColor(VoidKind kind)
+        {
+            switch (kind)
+            {
+                case VoidKind.Buff: return BuffVoidColor;
+                case VoidKind.Spread: return SpreadVoidColor;
+                case VoidKind.Danger: return DangerVoidColor;
+                default: return VoidColor;
+            }
+        }
+
         static Color ColorOf(CellType type)
         {
             switch (type)
@@ -144,6 +182,7 @@ namespace VoidConverter.View
                 case CellType.Monster: return MonsterColor;
                 case CellType.Gold: return GoldColor;
                 case CellType.Heal: return HealColor;
+                case CellType.Empty: return EmptyColor;
                 default: return VoidColor;
             }
         }
