@@ -111,6 +111,14 @@ namespace VoidConverter.EditorTools
                         gc.PressMainButton();
                         continue;
                     }
+                    // Pick-One rule: the careful bot takes the money as soon as the goal is reached.
+                    if (gc.PickOneRule && bot == Bot.Passive && gc.CanEndRound)
+                    {
+                        result.Rounds++;
+                        result.TotalTurns += gc.PlacementsUsed;
+                        gc.PressMainButton();
+                        continue;
+                    }
                     int turnsBefore = gc.PlacementsUsed, overtimeBefore = gc.OvertimeSteps, stageBefore = gc.Stage;
                     if (!PlaceOne(gc, cfg, bot, rng))
                     {
@@ -265,6 +273,15 @@ namespace VoidConverter.EditorTools
 
         static double Score(Core.Grid grid, PlayerStats player, GameConfig cfg, Bot bot, Int2[] cells, int x, int y, float chance)
         {
+            // Pick-One rule: one random covered cell fires, so a block is worth its average.
+            if (cfg.pickOneRule)
+            {
+                var odds = PickOdds.Analyze(player, grid.CandidatesUnder(cells, x, y), cfg.goldCellReward, cfg.healCellAmount, cfg.goldPerMonsterPower);
+                double heal1 = Math.Min(player.MaxHp - player.Hp, odds.ExpectedHeal);
+                double damageWeight = bot == Bot.Passive ? 10 : bot == Bot.Rusher ? 0.5 : 1.5;
+                return odds.ExpectedGold + heal1 - damageWeight * odds.ExpectedDamage;
+            }
+
             int fixedPower = grid.MonsterPowerUnder(cells, x, y);
             var voidPowers = grid.VoidPowersUnder(cells, x, y);
             int voidCells = voidPowers.Count;

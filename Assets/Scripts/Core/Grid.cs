@@ -329,6 +329,55 @@ namespace VoidConverter.Core
             return false;
         }
 
+        /// <summary>The fresh (not activated, not Empty) cells a block would cover, in the order of the block's cells.</summary>
+        public List<ActivatedCell> CandidatesUnder(Int2[] blockCells, int originX, int originY)
+        {
+            var list = new List<ActivatedCell>();
+            foreach (var c in blockCells)
+            {
+                int x = originX + c.X;
+                int y = originY + c.Y;
+                if (!InBounds(x, y)) continue;
+                var cell = cells[x, y];
+                if (cell.Used || cell.Type == CellType.Empty) continue;
+                list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y), Kind = cell.Kind, Contaminated = cell.Contaminated });
+            }
+            return list;
+        }
+
+        /// <summary>How many cells could still fire (not activated, not Empty).</summary>
+        public int CountFresh()
+        {
+            int count = 0;
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (!cells[x, y].Used && cells[x, y].Type != CellType.Empty) count++;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Pick-one rule: only one random fresh cell under the block fires (and locks); the other covered cells stay as
+        /// they were. The result lists that one cell, or nothing if the block covers no fresh cell.
+        /// Returns null if the block does not fit.
+        /// </summary>
+        public PlacementResult PlaceOne(Int2[] blockCells, int originX, int originY, Random rng)
+        {
+            if (!CanPlace(blockCells, originX, originY)) return null;
+
+            var result = new PlacementResult();
+            var candidates = CandidatesUnder(blockCells, originX, originY);
+            if (candidates.Count == 0) return result;
+
+            var pick = candidates[rng.Next(candidates.Count)];
+            cells[pick.X, pick.Y].Used = true;
+            result.Activated.Add(pick);
+            return result;
+        }
+
         /// <summary>
         /// Activates every covered cell and reports what was activated. Effects (combat, corruption, rewards)
         /// are applied by later systems from this result. Returns null if the block does not fit.

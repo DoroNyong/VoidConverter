@@ -90,17 +90,17 @@ namespace VoidConverter.Data
         public float cellGap = 0.06f;
         [Header("Cell Counts")]
         [Tooltip("Exactly this many void cells per board.")]
-        public int voidCount = 5;
+        public int voidCount = 0;
         [Tooltip("Every board has at least this many monster cells (used when Monster Count is 0).")]
         public int monsterMin = 10;
         [Tooltip("Above 0: exactly this many monster cells. Gold and heal fill up to Reward Max and the rest of the board is empty. 0 = the older rule (Monster Min plus a weighted share of the leftover cells).")]
-        public int monsterCount = 10;
+        public int monsterCount = 9;
         [Tooltip("Every board has at least this many gold cells.")]
-        public int goldMin = 2;
+        public int goldMin = 7;
         [Tooltip("Every board has at least this many heal cells.")]
-        public int healMin = 2;
+        public int healMin = 3;
         [Tooltip("Gold and heal cells together never exceed this per board (0 = no cap). Cells over the cap become monsters.")]
-        public int rewardMax = 6;
+        public int rewardMax = 11;
         [Tooltip("The cells left after the void count and the minimums are split among monster/gold/heal by these weights.")]
         public float monsterWeight = 5f;
         public float goldWeight = 1f;
@@ -134,9 +134,9 @@ namespace VoidConverter.Data
 
         [Header("Void Kinds")]
         [Tooltip("How many of the void cells on a board are each special kind. The rest are Normal.")]
-        public int voidBuffCount = 1;
-        public int voidSpreadCount = 1;
-        public int voidDangerCount = 1;
+        public int voidBuffCount = 0;
+        public int voidSpreadCount = 0;
+        public int voidDangerCount = 0;
         [Tooltip("Buff void: each monster next to it gets this much stronger while it stands.")]
         public int voidBuffPower = 1;
         [Tooltip("Danger void: hit points. Each block placed on it hits for the player's attack roll.")]
@@ -148,17 +148,29 @@ namespace VoidConverter.Data
         [Tooltip("Gold gained for beating monsters = their summed power * this (only when the block's contest is won).")]
         public float goldPerMonsterPower = 1f;
         [Tooltip("Gold from a gold cell, and from a void cell that turned out to be a reward.")]
-        public int goldCellReward = 1;
+        public int goldCellReward = 2;
         [Tooltip("HP restored by a heal cell.")]
         public int healCellAmount = 1;
 
         [Header("Clear Rule")]
         [Tooltip("On: a Combat round ends when every monster cell is covered (a lost fight still removes the monster), blocks may overlap spent cells, and Max Placements / manual end do not apply. Off: the older round rules below.")]
-        public bool clearAllRule = true;
+        public bool clearAllRule = false;
         [Tooltip("Clear Rule: the blocks placed in one round before overtime starts.")]
         public int clearTurnLimit = 5;
         [Tooltip("Clear Rule: after every block placed at or past the turn limit, each monster left gets this much stronger.")]
         public int overtimeGrowth = 1;
+
+        [Header("Pick-One Rule (v0.3)")]
+        [Tooltip("On: a block lets only ONE random covered fresh cell fire (all cells are shown, the odds are shown before placing). A round is a goal: collect Goal Gold in Goal Turns blocks. Replaces the Clear Rule and the older round rules. Blocks may be placed over spent cells.")]
+        public bool pickOneRule = true;
+        [Tooltip("Pick-One: gold to collect in a Combat round. Reaching it unlocks the Cash Out button; the round may go on until the turns run out.")]
+        public int goalGold = 10;
+        [Tooltip("Pick-One: gold to collect in the Boss round. Missing it at the last turn ends the run.")]
+        public int bossGoalGold = 12;
+        [Tooltip("Pick-One: blocks that may be placed in one round.")]
+        public int goalTurns = 6;
+        [Tooltip("Pick-One: HP lost per missing gold when a Combat round ends below its goal.")]
+        public int goalShortfallDamage = 1;
 
         [Header("Round")]
         [Tooltip("How many blocks the player may place in one round (older rule, ignored by the Clear Rule).")]
@@ -181,7 +193,7 @@ namespace VoidConverter.Data
         public int bossMonsterGrowth = 0;
         [Tooltip("This many monsters on the boss board are replaced by strong ones.")]
         public int bossStrongMonsterCount = 3;
-        public int bossStrongMonsterPower = 5;
+        public int bossStrongMonsterPower = 4;
 
         [Header("Screen Transition")]
         [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
@@ -292,8 +304,8 @@ namespace VoidConverter.Data
         public List<int> fixedHandSizes = new List<int> { 2, 3, 4 };
         [Tooltip("Attack added to the roll of a block with this many cells (a bigger block hits harder).")]
         public int attackBonus2 = 0;
-        public int attackBonus3 = 1;
-        public int attackBonus4 = 2;
+        public int attackBonus3 = 0;
+        public int attackBonus4 = 0;
         [Tooltip("Probability weight of 2-cell blocks (split evenly among that size's shapes).")]
         public float blockWeight2 = 4f;
         [Tooltip("Probability weight of 3-cell blocks.")]

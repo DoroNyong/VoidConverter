@@ -56,7 +56,11 @@ namespace VoidConverter.View
             var p = controller.Player;
             stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}-{p.AttackMax}" +
                          $"    Gold {p.Gold}    ";
-            if (controller.ClearRule && controller.Phase == RunPhase.Playing)
+            if (controller.PickOneRule && controller.Phase == RunPhase.Playing)
+            {
+                stats.text += $"Turn {controller.PlacementsUsed}/{controller.GoalTurns}    Goal ${controller.RoundGold}/{controller.GoalGold}";
+            }
+            else if (controller.ClearRule && controller.Phase == RunPhase.Playing)
             {
                 stats.text += $"Turn {controller.PlacementsUsed}/{controller.TurnLimit}    Monsters left {controller.MonstersLeft}" +
                               (controller.OvertimeSteps > 0 ? $"    OVERTIME +{controller.OvertimeSteps * controller.Config.overtimeGrowth}" : "");
@@ -68,7 +72,9 @@ namespace VoidConverter.View
             stats.color = p.IsDead ? DeadColor : StatsColor;
 
             int monsterPercent = Mathf.RoundToInt(VoidRules.MonsterChance(p) * 100f);
-            voidStats.text = $"Corruption {p.Corruption}/{p.MaxCorruption}    Void monster {monsterPercent}%    Void power {controller.Grid.VoidPower}";
+            voidStats.text = controller.PickOneRule
+                ? ""
+                : $"Corruption {p.Corruption}/{p.MaxCorruption}    Void monster {monsterPercent}%    Void power {controller.Grid.VoidPower}";
             message.text = controller.Message;
 
             // The shop draws its own screen; the other non-playing phases use this banner.

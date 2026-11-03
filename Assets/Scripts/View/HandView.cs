@@ -153,7 +153,11 @@ namespace VoidConverter.View
 
             // The contest is the block's covered monsters summed against one attack roll. Covered void cells may add
             // a monster each, so the win chance weighs every combination of their outcomes.
-            if (valid)
+            if (valid && controller.PickOneRule)
+            {
+                ShowPickOdds(cells, origin);
+            }
+            else if (valid)
             {
                 // The size bonus of the held block counts in the win chances below; HideGhost puts it back.
                 controller.Player.BlockBonus = controller.AttackBonusFor(cells.Length);
@@ -193,6 +197,35 @@ namespace VoidConverter.View
                 ghostInfo.gameObject.SetActive(false);
             }
         }
+
+        /// <summary>Pick-One rule: the odds of the one cell that will fire, and what the block is worth on average.</summary>
+        void ShowPickOdds(Int2[] cells, Int2 origin)
+        {
+            var candidates = controller.Grid.CandidatesUnder(cells, origin.X, origin.Y);
+            var odds = PickOdds.Analyze(controller.Player, candidates, config.goldCellReward, config.healCellAmount, config.goldPerMonsterPower);
+
+            if (odds.Candidates == 0)
+            {
+                ghostInfo.text = "Nothing under\nthis block";
+                ghostInfo.color = new Color(1f, 1f, 1f, 0.6f);
+            }
+            else
+            {
+                var lines = new List<string> { $"1 of {odds.Candidates} cells fires" };
+                if (odds.Golds > 0) lines.Add($"Gold {Percent(odds.GoldChance)}%  (+${config.goldCellReward})");
+                if (odds.Monsters > 0) lines.Add($"Monster {Percent(odds.MonsterChance)}%  (win {Percent(odds.MonsterWinChance)}%)");
+                if (odds.Heals > 0) lines.Add($"Heal {Percent(odds.HealChance)}%  (+{config.healCellAmount} HP)");
+                lines.Add($"Avg ${odds.ExpectedGold:0.0}   HP {(odds.ExpectedHeal - odds.ExpectedDamage):+0.0;-0.0;0.0}");
+                ghostInfo.text = string.Join("\n", lines);
+                // The more gold on average, the greener.
+                ghostInfo.color = GridView.ChanceColor(Mathf.Clamp01(odds.ExpectedGold / 2f));
+            }
+            float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + SidePanelGap;
+            ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
+            ghostInfo.gameObject.SetActive(true);
+        }
+
+        static int Percent(float chance) => Mathf.RoundToInt(chance * 100f);
 
         /// <summary>One line about the special voids under the block (they have no contest of their own).</summary>
         string VoidKindLine(Int2[] cells, Int2 origin)
@@ -275,7 +308,7 @@ namespace VoidConverter.View
 
                 // Bigger blocks hit harder: say how much, under the block.
                 int bonus = controller.AttackBonusFor(cells.Length);
-                if (bonus > 0 || controller.Config.fixedHand)
+                if (!controller.PickOneRule && (bonus > 0 || controller.Config.fixedHand))
                 {
                     TextUtil.AddText(transform, "Block Bonus", center + new Vector2(0f, -config.handSlotSize * 0.5f + 0.25f),
                         $"ATK +{bonus}", 48, 0.036f, bonus > 0 ? new Color(1f, 0.95f, 0.6f) : new Color(1f, 1f, 1f, 0.5f), 10);

@@ -16,12 +16,12 @@ MonoBehaviour:
   gridHeight: 5
   cellSize: 1
   cellGap: 0.06
-  voidCount: 5
+  voidCount: 0
   monsterMin: 10
-  monsterCount: 10
-  goldMin: 2
-  healMin: 2
-  rewardMax: 6
+  monsterCount: 9
+  goldMin: 7
+  healMin: 3
+  rewardMax: 11
   monsterWeight: 5
   goldWeight: 1
   healWeight: 1
@@ -37,18 +37,23 @@ MonoBehaviour:
   voidPowerMin: 2
   voidPowerMax: 4
   voidPowerPerCorruption: 0.2
-  voidBuffCount: 1
-  voidSpreadCount: 1
-  voidDangerCount: 1
+  voidBuffCount: 0
+  voidSpreadCount: 0
+  voidDangerCount: 0
   voidBuffPower: 1
   voidDangerHp: 6
   voidDangerRewardGold: 3
   goldPerMonsterPower: 1
-  goldCellReward: 1
+  goldCellReward: 2
   healCellAmount: 1
-  clearAllRule: 1
+  clearAllRule: 0
   clearTurnLimit: 5
   overtimeGrowth: 1
+  pickOneRule: 1
+  goalGold: 10
+  bossGoalGold: 12
+  goalTurns: 6
+  goalShortfallDamage: 1
   maxPlacements: 6
   stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3
@@ -56,7 +61,7 @@ MonoBehaviour:
   bossHoldPlacements: 5
   bossMonsterGrowth: 0
   bossStrongMonsterCount: 3
-  bossStrongMonsterPower: 5
+  bossStrongMonsterPower: 4
   fadeSeconds: 0.3
   fadeDelaySeconds: 0.5
   items:
@@ -186,8 +191,8 @@ MonoBehaviour:
   fixedHand: 1
   fixedHandSizes: 020000000300000004000000
   attackBonus2: 0
-  attackBonus3: 1
-  attackBonus4: 2
+  attackBonus3: 0
+  attackBonus4: 0
   blockWeight2: 4
   blockWeight3: 4
   blockWeight4: 2

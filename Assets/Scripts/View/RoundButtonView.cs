@@ -78,6 +78,14 @@ namespace VoidConverter.View
                 label.text = "Restart";
                 background.color = RestartColor;
             }
+            else if (controller.PickOneRule)
+            {
+                // Reaching the goal unlocks the button: cash out now, or keep placing for more.
+                bool reached = controller.GoalReached;
+                string goal = $"Goal\n${controller.RoundGold}/{controller.GoalGold}";
+                label.text = reached ? (controller.IsBossStage ? "Defeat\nBoss" : "Cash Out") : goal;
+                background.color = reached ? EnabledColor : DisabledColor;
+            }
             else if (controller.IsBossStage)
             {
                 bool ready = controller.BossReady;
