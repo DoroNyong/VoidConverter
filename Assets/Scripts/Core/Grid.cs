@@ -96,6 +96,12 @@ namespace VoidConverter.Core
         /// </summary>
         public bool AllowOverlap { get; set; }
 
+        /// <summary>
+        /// Pick-One rule: a cell a block already covered cannot be covered again (it is dead, fired or not). Empty cells
+        /// were never covered, so they stay free.
+        /// </summary>
+        public bool BlockCovered { get; set; }
+
         /// <summary>How many monster cells have not been activated yet.</summary>
         public int CountUnusedMonsters()
         {
@@ -121,6 +127,7 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) return false;
                 var cell = cells[x, y];
+                if (BlockCovered && cell.Covered) return false;
                 if (cell.Used && !AllowOverlap) return false;
             }
             return true;
@@ -339,7 +346,7 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) continue;
                 var cell = cells[x, y];
-                if (cell.Used || cell.Type == CellType.Empty) continue;
+                if (cell.Used || cell.Covered || cell.Type == CellType.Empty) continue;
                 list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y), Kind = cell.Kind, Contaminated = cell.Contaminated });
             }
             return list;
@@ -353,7 +360,7 @@ namespace VoidConverter.Core
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    if (!cells[x, y].Used && cells[x, y].Type != CellType.Empty) count++;
+                    if (!cells[x, y].Used && !cells[x, y].Covered && cells[x, y].Type != CellType.Empty) count++;
                 }
             }
             return count;
@@ -370,6 +377,12 @@ namespace VoidConverter.Core
 
             var result = new PlacementResult();
             var candidates = CandidatesUnder(blockCells, originX, originY);
+            // Every cell under the block counts as covered, whether or not it fires.
+            foreach (var c in blockCells)
+            {
+                int cx = originX + c.X, cy = originY + c.Y;
+                cells[cx, cy].Covered = true;
+            }
             if (candidates.Count == 0) return result;
 
             var pick = candidates[rng.Next(candidates.Count)];

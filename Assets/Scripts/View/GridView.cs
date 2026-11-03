@@ -23,6 +23,9 @@ namespace VoidConverter.View
         const float VoidInnerScale = 0.72f;
         const float ContaminationScale = 0.28f;
         const float UsedDim = 0.3f;
+        // A cell a block covered cannot take another block: it gets a red frame.
+        static readonly Color BlockedFrameColor = new Color(0.95f, 0.2f, 0.2f);
+        const float BlockedFrameThickness = 0.08f;
 
         const float CameraMargin = 0.8f;
         const float HudSpace = 2.1f;
@@ -83,18 +86,21 @@ namespace VoidConverter.View
                 for (int y = 0; y < grid.Height; y++)
                 {
                     var cell = grid[x, y];
+                    // Fired cells and cells a block covered are dead: dimmed, no label.
+                    bool dead = cell.Used || cell.Covered;
                     Color color = ColorOf(cell.Type);
-                    if (cell.Used) color *= UsedDim;
+                    if (dead) color *= UsedDim;
                     color.a = 1f;
                     Vector2 center = origin + new Vector2(x * Step, y * Step);
                     SpriteUtil.AddSquare(transform, $"Cell {x},{y}", center, config.cellSize, color, 0);
+                    if (cell.Covered && grid.BlockCovered) AddBlockedFrame(center);
 
-                    if (cell.Type == CellType.Void && !cell.Used && cell.Kind != VoidKind.Normal)
+                    if (cell.Type == CellType.Void && !dead && cell.Kind != VoidKind.Normal)
                     {
                         SpriteUtil.AddSquare(transform, $"Void Kind {x},{y}", center, config.cellSize * VoidInnerScale, KindColor(cell.Kind), 1);
                     }
                     // A contaminated cell keeps its look, with a small marker in the corner.
-                    if (cell.Contaminated && !cell.Used)
+                    if (cell.Contaminated && !dead)
                     {
                         float corner = config.cellSize * 0.5f - config.cellSize * ContaminationScale * 0.5f;
                         SpriteUtil.AddSquare(transform, $"Contaminated {x},{y}", center + new Vector2(corner, corner), config.cellSize * ContaminationScale, SpreadVoidColor, 2);
@@ -102,34 +108,52 @@ namespace VoidConverter.View
 
                     // Monster power is public. Locked cells show nothing. The odds depend on which monsters a block
                     // covers together, so they are shown on the drag ghost rather than per cell.
-                    if (cell.Type == CellType.Monster && !cell.Used)
+                    if (cell.Type == CellType.Monster && !dead)
                     {
                         TextUtil.AddText(transform, "Power", center, grid.EffectivePower(x, y).ToString(), 64, 0.07f, Color.white, 10);
                     }
-                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !cell.Used)
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !dead)
                     {
                         TextUtil.AddText(transform, "Danger HP", center, cell.Hp.ToString(), 64, 0.07f, Color.white, 10);
                     }
-                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Buff && !cell.Used)
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Buff && !dead)
                     {
                         TextUtil.AddText(transform, "Buff Power", center, "+" + grid.BuffPower, 64, 0.06f, Color.black, 10);
                     }
                     // Reward cells say what they give. Locked cells show nothing.
-                    else if (cell.Type == CellType.Gold && !cell.Used)
+                    else if (cell.Type == CellType.Gold && !dead)
                     {
                         TextUtil.AddText(transform, "Gold Reward", center, "$" + config.goldCellReward, 64, 0.06f, RewardLabelColor, 10);
                     }
-                    else if (cell.Type == CellType.Heal && !cell.Used)
+                    else if (cell.Type == CellType.Heal && !dead)
                     {
                         TextUtil.AddText(transform, "Heal Amount", center, "+" + config.healCellAmount + " HP", 64, 0.045f, RewardLabelColor, 10);
                     }
                     // Every void cell shows, faintly, the same power: the monster it would spawn. It re-rolls after every placement.
-                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Normal && !cell.Used)
+                    else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Normal && !dead)
                     {
                         TextUtil.AddText(transform, "Void Power", center, grid.VoidPower.ToString(), 64, 0.07f, VoidPowerColor, 10);
                     }
                 }
             }
+        }
+
+        /// <summary>A red frame around a cell: no block can be placed here.</summary>
+        void AddBlockedFrame(Vector2 center)
+        {
+            float size = config.cellSize;
+            float t = size * BlockedFrameThickness;
+            float edge = size * 0.5f - t * 0.5f;
+            AddFrameBar(center + new Vector2(0f, edge), size, t);
+            AddFrameBar(center + new Vector2(0f, -edge), size, t);
+            AddFrameBar(center + new Vector2(edge, 0f), t, size);
+            AddFrameBar(center + new Vector2(-edge, 0f), t, size);
+        }
+
+        void AddFrameBar(Vector2 pos, float width, float height)
+        {
+            var bar = SpriteUtil.AddSquare(transform, "Blocked Frame", pos, 1f, BlockedFrameColor, 3);
+            bar.transform.localScale = new Vector3(width, height, 1f);
         }
 
         /// <summary>Frames the grid with the hand area below it, whatever the screen aspect ratio.</summary>

@@ -16,6 +16,8 @@ namespace VoidConverter.Core
     public class Cell
     {
         public CellType Type;
+        // Pick-One rule: a block was placed over this cell. A covered cell never fires and (with BlockCovered) takes no block again.
+        public bool Covered;
         // Every cell locks once activated (a Danger void only when it breaks).
         public bool Used;
         // Monster cells only: their attack. Normal void cells share Grid.VoidPower instead.

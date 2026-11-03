@@ -220,7 +220,11 @@ namespace VoidConverter.Game
 
         void StartRound()
         {
-            Grid = new Grid(config.gridWidth, config.gridHeight) { AllowOverlap = config.clearAllRule || config.pickOneRule };
+            Grid = new Grid(config.gridWidth, config.gridHeight)
+            {
+                AllowOverlap = config.clearAllRule || config.pickOneRule,
+                BlockCovered = config.pickOneRule && config.coveredCellsBlock,
+            };
             Grid.Generate(config.ToGridSettings(), rng);
             if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
             // The first void power comes from the current corruption, which carries over between rounds.
@@ -550,7 +554,8 @@ namespace VoidConverter.Game
                 Phase = RunPhase.Defeated;
                 Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
             }
-            else if (PlacementsUsed >= GoalTurns || Grid.CountFresh() == 0)
+            else if (PlacementsUsed >= GoalTurns || Grid.CountFresh() == 0 ||
+                     (Grid.BlockCovered && !Hand.AnyPlaceable(Grid.CanPlaceAnywhere)))
             {
                 SettleRound();
             }

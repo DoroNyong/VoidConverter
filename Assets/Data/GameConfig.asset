@@ -31,8 +31,7 @@ MonoBehaviour:
   monsterPowerMin: 2
   monsterPowerMax: 4
   playerMaxHp: 10
-  playerAttackMin: 2
-  playerAttackMax: 4
+  playerAttack: 3
   maxCorruption: 10
   voidPowerMin: 2
   voidPowerMax: 4
@@ -54,6 +53,7 @@ MonoBehaviour:
   bossGoalGold: 12
   goalTurns: 6
   goalShortfallDamage: 1
+  coveredCellsBlock: 1
   maxPlacements: 6
   stages: 00000000010000000000000001000000000000000200000003000000
   minPlacementsToEnd: 3

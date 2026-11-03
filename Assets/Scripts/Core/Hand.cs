@@ -37,9 +37,17 @@ namespace VoidConverter.Core
             {
                 for (int i = 0; i < Slots.Length; i++)
                 {
-                    if (Slots[i] != null) continue;
-                    Slots[i] = BlockLibrary.PickOfSize(FixedSizeOf(i), rng);
-                    Rotations[i] = 0;
+                    if (Slots[i] == null)
+                    {
+                        Slots[i] = BlockLibrary.PickOfSize(FixedSizeOf(i), rng);
+                        Rotations[i] = 0;
+                    }
+                    // A block that fits nowhere is swapped for another shape of the same size, if one fits.
+                    for (int attempt = 0; attempt < MaxRerollAttempts && canPlace != null && !canPlace(Slots[i]); attempt++)
+                    {
+                        Slots[i] = BlockLibrary.PickOfSize(FixedSizeOf(i), rng);
+                        Rotations[i] = 0;
+                    }
                 }
                 return;
             }

@@ -54,7 +54,7 @@ namespace VoidConverter.View
         void Refresh()
         {
             var p = controller.Player;
-            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}-{p.AttackMax}" +
+            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {(p.AttackMin == p.AttackMax ? p.AttackMin.ToString() : p.AttackMin + "-" + p.AttackMax)}" +
                          $"    Gold {p.Gold}    ";
             if (controller.PickOneRule && controller.Phase == RunPhase.Playing)
             {

@@ -213,7 +213,13 @@ namespace VoidConverter.View
             {
                 var lines = new List<string> { $"1 of {odds.Candidates} cells fires" };
                 if (odds.Golds > 0) lines.Add($"Gold {Percent(odds.GoldChance)}%  (+${config.goldCellReward})");
-                if (odds.Monsters > 0) lines.Add($"Monster {Percent(odds.MonsterChance)}%  (win {Percent(odds.MonsterWinChance)}%)");
+                if (odds.Monsters > 0)
+                {
+                    // With one fixed attack every fight is certain: say how many of the covered monsters are beaten.
+                    bool certain = controller.Player.AttackMin == controller.Player.AttackMax;
+                    string outcome = certain ? $"beat {odds.MonsterWins} of {odds.Monsters}" : $"win {Percent(odds.MonsterWinChance)}%";
+                    lines.Add($"Monster {Percent(odds.MonsterChance)}%  ({outcome})");
+                }
                 if (odds.Heals > 0) lines.Add($"Heal {Percent(odds.HealChance)}%  (+{config.healCellAmount} HP)");
                 lines.Add($"Avg ${odds.ExpectedGold:0.0}   HP {(odds.ExpectedHeal - odds.ExpectedDamage):+0.0;-0.0;0.0}");
                 ghostInfo.text = string.Join("\n", lines);

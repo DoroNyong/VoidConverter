@@ -10,6 +10,8 @@ namespace VoidConverter.Core
         public int Monsters;
         public int Golds;
         public int Heals;
+        /// <summary>How many of the covered monsters the player is sure to beat (all of them with a single attack number).</summary>
+        public int MonsterWins;
         /// <summary>Average win chance (0..1) over the covered monsters, 0 if there are none.</summary>
         public float MonsterWinChance;
         /// <summary>Average gold of one placement, counting gold cells and won fights.</summary>
@@ -48,6 +50,7 @@ namespace VoidConverter.Core
                         result.Monsters++;
                         float win = player.WinChance(cell.Power);
                         winSum += win;
+                        if (win >= 1f) result.MonsterWins++;
                         goldSum += win * cell.Power * goldPerMonsterPower;
                         float damage = 0f;
                         for (int roll = min; roll <= max; roll++)

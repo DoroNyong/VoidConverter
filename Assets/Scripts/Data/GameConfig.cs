@@ -120,8 +120,8 @@ namespace VoidConverter.Data
 
         [Header("Player")]
         public int playerMaxHp = 10;
-        public int playerAttackMin = 2;
-        public int playerAttackMax = 4;
+        [Tooltip("The player's attack: one fixed number (no roll). A monster is beaten when the attack is at least its power.")]
+        public int playerAttack = 3;
 
         [Header("Void")]
         [Tooltip("Corruption cap. Monster chance of a void cell = corruption / this.")]
@@ -171,6 +171,8 @@ namespace VoidConverter.Data
         public int goalTurns = 6;
         [Tooltip("Pick-One: HP lost per missing gold when a Combat round ends below its goal.")]
         public int goalShortfallDamage = 1;
+        [Tooltip("Pick-One: a cell a block covered cannot take another block (the covered cells that did not fire are lost). The round also ends when no block in the hand fits any more. Off: blocks may overlap spent cells.")]
+        public bool coveredCellsBlock = true;
 
         [Header("Round")]
         [Tooltip("How many blocks the player may place in one round (older rule, ignored by the Clear Rule).")]
@@ -384,7 +386,7 @@ namespace VoidConverter.Data
             return offers;
         }
 
-        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttackMin, playerAttackMax, maxCorruption);
+        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption);
 
         /// <summary>The attack bonus of a block with this many cells.</summary>
         public int AttackBonusFor(int cellCount)
