@@ -276,7 +276,7 @@ namespace VoidConverter.EditorTools
             // Pick-One rule: one random covered cell fires, so a block is worth its average.
             if (cfg.pickOneRule)
             {
-                var odds = PickOdds.Analyze(player, grid.CandidatesUnder(cells, x, y), cfg.goldCellReward, cfg.healCellAmount, cfg.goldPerMonsterPower);
+                var odds = PickOdds.Analyze(player, grid.CandidatesUnder(cells, x, y), cfg.goldCellReward, cfg.healCellAmount, cfg.goldPerMonsterPower, cfg.trapDamage);
                 double heal1 = Math.Min(player.MaxHp - player.Hp, odds.ExpectedHeal);
                 double damageWeight = bot == Bot.Passive ? 10 : bot == Bot.Rusher ? 0.5 : 1.5;
                 return odds.ExpectedGold + heal1 - damageWeight * odds.ExpectedDamage;

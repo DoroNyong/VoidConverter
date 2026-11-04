@@ -17,8 +17,25 @@ namespace VoidConverter.Data
         public int attackBonus;
         [Tooltip("Added to the max HP. Current HP rises by the same amount.")]
         public int maxHpBonus;
+        [Tooltip("Added to the player's Magic attack.")]
+        public int magicBonus;
 
-        public ItemDefinition ToDefinition() => new ItemDefinition(id, displayName, attackBonus, maxHpBonus);
+        public ItemDefinition ToDefinition() => new ItemDefinition(id, displayName, attackBonus, maxHpBonus, magicBonus);
+    }
+
+    /// <summary>One kind of monster: beaten when the player's Attack (physical) or Magic is at least its power.</summary>
+    [Serializable]
+    public class MonsterTypeData
+    {
+        public string name;
+        [Tooltip("On: a magic monster (beaten by Magic). Off: a physical one (beaten by Attack).")]
+        public bool magic;
+        [Tooltip("The attack / magic needed to beat it. A lower value costs HP equal to the difference.")]
+        public int power = 3;
+        [Tooltip("How often it shows up among the monsters that may appear.")]
+        public float weight = 1f;
+        [Tooltip("The first stage (1-based position in the run) in which it can appear.")]
+        public int firstStage = 1;
     }
 
     /// <summary>One shelf slot as edited in the inspector: an item (by id) or a heal, with its price.</summary>
@@ -93,35 +110,62 @@ namespace VoidConverter.Data
         public int voidCount = 0;
         [Tooltip("Every board has at least this many monster cells (used when Monster Count is 0).")]
         public int monsterMin = 10;
-        [Tooltip("Above 0: exactly this many monster cells. Gold and heal fill up to Reward Max and the rest of the board is empty. 0 = the older rule (Monster Min plus a weighted share of the leftover cells).")]
-        public int monsterCount = 9;
+        [Tooltip("Above 0 = the Pick-One layout: traps are exact, gold and heal are drawn from their min..max, and every other cell is a monster (the number itself is not used). 0 = the older rule (Monster Min plus a weighted share of the leftover cells).")]
+        public int monsterCount = 12;
+        [Tooltip("Pick-One rule: fewest trap cells per board (a trap only costs HP when it fires).")]
+        public int trapCount = 4;
+        [Tooltip("Pick-One rule: most trap cells per board.")]
+        public int trapMax = 5;
         [Tooltip("Every board has at least this many gold cells.")]
-        public int goldMin = 7;
+        public int goldMin = 3;
+        [Tooltip("Pick-One: most gold cells per board.")]
+        public int goldMax = 4;
         [Tooltip("Every board has at least this many heal cells.")]
-        public int healMin = 3;
+        public int healMin = 2;
+        [Tooltip("Pick-One: most heal cells per board.")]
+        public int healMax = 3;
         [Tooltip("Gold and heal cells together never exceed this per board (0 = no cap). Cells over the cap become monsters.")]
-        public int rewardMax = 11;
+        public int rewardMax = 9;
         [Tooltip("The cells left after the void count and the minimums are split among monster/gold/heal by these weights.")]
         public float monsterWeight = 5f;
-        public float goldWeight = 1f;
+        public float goldWeight = 3f;
         public float healWeight = 1f;
 
         [Header("Cell Spacing")]
         [Tooltip("Void cells keep this Chebyshev distance from each other. 2 = not even diagonally touching. 1 = no rule.")]
         public int voidMinSpacing = 2;
         [Tooltip("Gold/heal cells keep this Chebyshev distance from each other. 2 = not even diagonally touching. 1 = no rule.")]
-        public int rewardMinSpacing = 2;
+        public int rewardMinSpacing = 1;
+        [Tooltip("Above 0: no group of edge-connected cells of one kind (monster, trap, gold, heal) is larger than this, and traps never touch heal cells. Replaces the monster cluster cap. 0 = off.")]
+        public int maxCluster = 2;
+        [Tooltip("Same limit for monster cells only, since they fill most of the board. 0 = use Max Cluster.")]
+        public int maxMonsterCluster = 3;
         [Tooltip("The largest group of edge-connected monster cells may not exceed this. 0 = no cap.")]
         public int monsterMaxCluster = 8;
 
         [Header("Monsters")]
-        public int monsterPowerMin = 2;
-        public int monsterPowerMax = 4;
+        public int monsterPowerMin = 1;
+        public int monsterPowerMax = 6;
 
         [Header("Player")]
-        public int playerMaxHp = 10;
+        public int playerMaxHp = 6;
         [Tooltip("The player's attack: one fixed number (no roll). A monster is beaten when the attack is at least its power.")]
-        public int playerAttack = 3;
+        public int playerAttack = 2;
+
+        [Tooltip("The player's Magic attack: the number that must reach a magic monster's power. Items add to it.")]
+        public int playerMagic = 1;
+
+        [Header("Monster Types (Pick-One rule)")]
+        [Tooltip("Monster cells take one of these types (by weight) among those whose First Stage has been reached. Empty = random physical power between Monster Power Min and Max.")]
+        public List<MonsterTypeData> monsterTypes = new List<MonsterTypeData>
+        {
+            new MonsterTypeData { name = "Slime", magic = true, power = 1, weight = 1f, firstStage = 1 },
+            new MonsterTypeData { name = "Beast", magic = false, power = 3, weight = 1f, firstStage = 1 },
+            new MonsterTypeData { name = "Wisp", magic = true, power = 2, weight = 1f, firstStage = 3 },
+            new MonsterTypeData { name = "Brute", magic = false, power = 4, weight = 1f, firstStage = 3 },
+            new MonsterTypeData { name = "Mage", magic = true, power = 3, weight = 1f, firstStage = 5 },
+            new MonsterTypeData { name = "Ogre", magic = false, power = 5, weight = 1f, firstStage = 5 },
+        };
 
         [Header("Void")]
         [Tooltip("Corruption cap. Monster chance of a void cell = corruption / this.")]
@@ -161,16 +205,18 @@ namespace VoidConverter.Data
         public int overtimeGrowth = 1;
 
         [Header("Pick-One Rule (v0.3)")]
-        [Tooltip("On: a block lets only ONE random covered fresh cell fire (all cells are shown, the odds are shown before placing). A round is a goal: collect Goal Gold in Goal Turns blocks. Replaces the Clear Rule and the older round rules. Blocks may be placed over spent cells.")]
+        [Tooltip("On: a block lets only ONE random covered fresh cell fire (all cells are shown, the odds are shown before placing). A cell a block covered cannot take another block. A round has no gold goal: place the minimum number of blocks to be allowed to leave, or keep going for more gold at the cost of HP. Replaces the Clear Rule and the older round rules.")]
         public bool pickOneRule = true;
-        [Tooltip("Pick-One: gold to collect in a Combat round. Reaching it unlocks the Cash Out button; the round may go on until the turns run out.")]
-        public int goalGold = 10;
-        [Tooltip("Pick-One: gold to collect in the Boss round. Missing it at the last turn ends the run.")]
-        public int bossGoalGold = 12;
-        [Tooltip("Pick-One: blocks that may be placed in one round.")]
-        public int goalTurns = 6;
-        [Tooltip("Pick-One: HP lost per missing gold when a Combat round ends below its goal.")]
-        public int goalShortfallDamage = 1;
+        [Tooltip("Pick-One: blocks that must be placed in a Combat round before the player may leave it.")]
+        public int pickMinPlacements = 4;
+        [Tooltip("Pick-One: blocks that must be placed in the Boss round before it can be defeated.")]
+        public int bossMinPlacements = 6;
+        [Tooltip("Pick-One: blocks that may be placed in one round at most (the round ends by itself after this many).")]
+        public int goalTurns = 7;
+        [Tooltip("Pick-One: HP lost when a trap fires.")]
+        public int trapDamage = 1;
+        [Tooltip("Pick-One: how many times per round the player may throw away the block in hand and draw a new one.")]
+        public int rerollsPerRound = 2;
         [Tooltip("Pick-One: a cell a block covered cannot take another block (the covered cells that did not fire are lost). The round also ends when no block in the hand fits any more. Off: blocks may overlap spent cells.")]
         public bool coveredCellsBlock = true;
 
@@ -195,7 +241,7 @@ namespace VoidConverter.Data
         public int bossMonsterGrowth = 0;
         [Tooltip("This many monsters on the boss board are replaced by strong ones.")]
         public int bossStrongMonsterCount = 3;
-        public int bossStrongMonsterPower = 4;
+        public int bossStrongMonsterPower = 5;
 
         [Header("Screen Transition")]
         [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
@@ -208,6 +254,7 @@ namespace VoidConverter.Data
         {
             new ItemData { id = "power_ring", displayName = "Power Ring", attackBonus = 1, maxHpBonus = 0 },
             new ItemData { id = "life_charm", displayName = "Life Charm", attackBonus = 0, maxHpBonus = 2 },
+            new ItemData { id = "arcane_ring", displayName = "Arcane Ring", magicBonus = 1 },
         };
 
         [Header("Events")]
@@ -295,14 +342,15 @@ namespace VoidConverter.Data
         public List<ShopOfferData> shopOffers = new List<ShopOfferData>
         {
             new ShopOfferData { itemId = "power_ring", price = 20 },
+            new ShopOfferData { itemId = "arcane_ring", price = 20 },
             new ShopOfferData { itemId = "life_charm", price = 15 },
             new ShopOfferData { itemId = "", healAmount = 4, price = 14 },
         };
 
         [Header("Blocks")]
-        public int handSize = 3;
+        public int handSize = 1;
         [Tooltip("On: slot i always holds a shape with Fixed Hand Sizes[i] cells (a used slot refills with the same size). Off: the weights below decide.")]
-        public bool fixedHand = true;
+        public bool fixedHand = false;
         public List<int> fixedHandSizes = new List<int> { 2, 3, 4 };
         [Tooltip("Attack added to the roll of a block with this many cells (a bigger block hits harder).")]
         public int attackBonus2 = 0;
@@ -320,13 +368,33 @@ namespace VoidConverter.Data
         public float handSlotGap = 0.2f;
         public float handMiniCellSize = 0.55f;
 
-        public GridSettings ToGridSettings() => new GridSettings
+        /// <summary>The monster types that can appear at this stage (1-based; 0 = all).</summary>
+        MonsterSpec[] MonsterSpecsFor(int stage)
         {
+            var specs = new List<MonsterSpec>();
+            if (monsterTypes != null)
+            {
+                foreach (var t in monsterTypes)
+                {
+                    if (stage > 0 && t.firstStage > stage) continue;
+                    specs.Add(new MonsterSpec { Magic = t.magic, Power = t.power, Weight = t.weight });
+                }
+            }
+            return specs.Count > 0 ? specs.ToArray() : null;
+        }
+
+        public GridSettings ToGridSettings(int stage = 0) => new GridSettings
+        {
+            MonsterSpecs = pickOneRule ? MonsterSpecsFor(stage) : null,
             VoidCount = voidCount,
             MonsterMin = monsterMin,
             MonsterCount = monsterCount,
+            TrapCount = trapCount,
+            TrapMax = trapMax,
             GoldMin = goldMin,
             HealMin = healMin,
+            GoldMax = goldMax,
+            HealMax = healMax,
             RewardMax = rewardMax,
             MonsterWeight = monsterWeight,
             GoldWeight = goldWeight,
@@ -334,6 +402,8 @@ namespace VoidConverter.Data
             VoidMinSpacing = voidMinSpacing,
             RewardMinSpacing = rewardMinSpacing,
             MonsterMaxCluster = monsterMaxCluster,
+            MaxCluster = maxCluster,
+            MaxMonsterCluster = maxMonsterCluster,
             MonsterPowerMin = monsterPowerMin,
             MonsterPowerMax = monsterPowerMax,
             VoidPowerMin = voidPowerMin,
@@ -386,7 +456,7 @@ namespace VoidConverter.Data
             return offers;
         }
 
-        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption);
+        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption, playerMagic);
 
         /// <summary>The attack bonus of a block with this many cells.</summary>
         public int AttackBonusFor(int cellCount)

@@ -22,6 +22,10 @@ namespace VoidConverter.View
         SpriteRenderer background;
         TextMesh label;
         Vector2 center;
+        // Pick-One rule: the reroll button, to the left of the hand.
+        SpriteRenderer rerollBackground;
+        TextMesh rerollLabel;
+        Vector2 rerollCenter;
 
         void Start()
         {
@@ -42,6 +46,11 @@ namespace VoidConverter.View
             background.transform.localScale = new Vector3(Size.x, Size.y, 1f);
             label = TextUtil.AddText(transform, "Label", center, "", 64, 0.04f, Color.white, 100);
 
+            rerollCenter = new Vector2(-x, y);
+            rerollBackground = SpriteUtil.AddSquare(transform, "Reroll Button", rerollCenter, 1f, EnabledColor, 90);
+            rerollBackground.transform.localScale = new Vector3(Size.x, Size.y, 1f);
+            rerollLabel = TextUtil.AddText(transform, "Reroll Label", rerollCenter, "", 64, 0.04f, Color.white, 100);
+
             controller.Changed += Refresh;
             Refresh();
         }
@@ -59,10 +68,21 @@ namespace VoidConverter.View
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
             bool inside = Mathf.Abs(world.x - center.x) <= Size.x * 0.5f && Mathf.Abs(world.y - center.y) <= Size.y * 0.5f;
             if (inside) controller.PressMainButton();
+            bool onReroll = Mathf.Abs(world.x - rerollCenter.x) <= Size.x * 0.5f && Mathf.Abs(world.y - rerollCenter.y) <= Size.y * 0.5f;
+            if (onReroll) controller.RerollHand();
         }
 
         void Refresh()
         {
+            bool showReroll = controller.PickOneRule && controller.Phase == RunPhase.Playing;
+            rerollBackground.gameObject.SetActive(showReroll);
+            rerollLabel.gameObject.SetActive(showReroll);
+            if (showReroll)
+            {
+                rerollLabel.text = $"Reroll (E)\n{controller.RerollsLeft} left";
+                rerollBackground.color = controller.RerollsLeft > 0 ? EnabledColor : DisabledColor;
+            }
+
             if (controller.Phase == RunPhase.Event && !controller.EventResolved)
             {
                 label.text = "Choose\none";
@@ -81,9 +101,10 @@ namespace VoidConverter.View
             else if (controller.PickOneRule)
             {
                 // Reaching the goal unlocks the button: cash out now, or keep placing for more.
-                bool reached = controller.GoalReached;
-                string goal = $"Goal\n${controller.RoundGold}/{controller.GoalGold}";
-                label.text = reached ? (controller.IsBossStage ? "Defeat\nBoss" : "Cash Out") : goal;
+                bool reached = controller.IsBossStage ? controller.BossReady : controller.CanEndRound;
+                string waiting = $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}";
+                string go = controller.IsBossStage ? "Defeat\nBoss" : controller.RoundOver ? "Next\nStage" : "Leave";
+                label.text = reached ? go : waiting;
                 background.color = reached ? EnabledColor : DisabledColor;
             }
             else if (controller.IsBossStage)

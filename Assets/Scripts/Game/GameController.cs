@@ -41,17 +41,24 @@ namespace VoidConverter.Game
         public int PlacementsUsed { get; private set; }
         public int MaxPlacements => config.maxPlacements;
         public int MinPlacementsToEnd => config.minPlacementsToEnd;
-        public bool OutOfPlacements => PickOneRule ? PlacementsUsed >= GoalTurns : !ClearRule && PlacementsUsed >= MaxPlacements;
+        public bool OutOfPlacements => PickOneRule ? RoundOver || PlacementsUsed >= GoalTurns : !ClearRule && PlacementsUsed >= MaxPlacements;
 
         /// <summary>The Pick-One rule (v0.3) is on: a block fires one random covered cell and a round is a gold goal.</summary>
         public bool PickOneRule => config.pickOneRule;
         /// <summary>Pick-One: gold collected in the current round (cells and won fights).</summary>
         public int RoundGold { get; private set; }
-        /// <summary>Pick-One: gold needed in the current round.</summary>
-        public int GoalGold => CurrentStage == StageType.Boss ? config.bossGoalGold : config.goalGold;
-        /// <summary>Pick-One: blocks that may be placed in one round.</summary>
+        /// <summary>Pick-One: blocks that must be placed before the round may be left (or the boss defeated).</summary>
+        public int MinPlacements => CurrentStage == StageType.Boss ? config.bossMinPlacements : config.pickMinPlacements;
+        /// <summary>Pick-One: blocks that may be placed in one round at most.</summary>
         public int GoalTurns => config.goalTurns;
-        public bool GoalReached => RoundGold >= GoalGold;
+        public bool MinReached => PlacementsUsed >= MinPlacements;
+        /// <summary>
+        /// Pick-One: no more blocks can be placed (all used, nothing left to fire or no block fits). The round then waits
+        /// for the player to press the button to go on; nothing moves on by itself.
+        /// </summary>
+        public bool RoundOver { get; private set; }
+        /// <summary>Pick-One: rerolls of the hand left in this round.</summary>
+        public int RerollsLeft { get; private set; }
 
         /// <summary>The Clear Rule is on: a round ends when every monster is covered. The Pick-One rule replaces it.</summary>
         public bool ClearRule => config.clearAllRule && !config.pickOneRule;
@@ -67,7 +74,7 @@ namespace VoidConverter.Game
 
         /// <summary>The round can be ended by hand after enough blocks were placed (older rule only).</summary>
         public bool CanEndRound => Phase == RunPhase.Playing && !IsBossStage &&
-            (PickOneRule ? GoalReached : !ClearRule && PlacementsUsed >= MinPlacementsToEnd);
+            (PickOneRule ? MinReached || RoundOver : !ClearRule && PlacementsUsed >= MinPlacementsToEnd);
 
         /// <summary>True while the boss stage's board is being played.</summary>
         public bool IsBossStage => Phase == RunPhase.Playing && CurrentStage == StageType.Boss;
@@ -78,7 +85,7 @@ namespace VoidConverter.Game
         /// (or nothing more fits).
         /// </summary>
         public bool BossReady => IsBossStage && !Player.IsDead &&
-            (PickOneRule ? GoalReached
+            (PickOneRule ? MinReached || RoundOver
                        : ClearRule ? MonstersLeft == 0
                        : PlacementsUsed >= BossHoldTarget || OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere));
 
@@ -128,6 +135,7 @@ namespace VoidConverter.Game
             // Debug: restart the whole run.
             if (keyboard.gKey.wasPressedThisFrame) NewRun();
             if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) PressMainButton();
+            if (keyboard.eKey.wasPressedThisFrame) RerollHand();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // Debug: 1 / 2 give the first two catalog items, Backspace takes back the last one.
@@ -225,7 +233,7 @@ namespace VoidConverter.Game
                 AllowOverlap = config.clearAllRule || config.pickOneRule,
                 BlockCovered = config.pickOneRule && config.coveredCellsBlock,
             };
-            Grid.Generate(config.ToGridSettings(), rng);
+            Grid.Generate(config.ToGridSettings(Stage), rng);
             if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
             // The first void power comes from the current corruption, which carries over between rounds.
             Grid.RerollVoidPower(Player, config.ToVoidSettings(), rng);
@@ -234,6 +242,8 @@ namespace VoidConverter.Game
             PlacementsUsed = 0;
             OvertimeSteps = 0;
             RoundGold = 0;
+            RoundOver = false;
+            RerollsLeft = config.rerollsPerRound;
         }
 
         /// <summary>
@@ -262,7 +272,7 @@ namespace VoidConverter.Game
             }
             if (!CanEndRound) return;
 
-            Message = PickOneRule ? $"Cashed out with ${RoundGold} (goal {GoalGold})" : $"Stage {Stage} ended early";
+            Message = PickOneRule ? $"Left the stage with ${RoundGold} earned" : $"Stage {Stage} ended early";
             FinishRound();
             Changed?.Invoke();
         }
@@ -515,23 +525,28 @@ namespace VoidConverter.Game
                 switch (cell.Type)
                 {
                     case CellType.Monster:
-                        var fight = Combat.Fight(Player, cell.Power, rng);
+                        var fight = Combat.Fight(Player, cell.Power, rng, cell.Magic);
+                        string stat = cell.Magic ? "MAG" : "ATK";
                         if (fight.Won)
                         {
                             int gold = Mathf.RoundToInt(cell.Power * config.goldPerMonsterPower);
                             Player.AddGold(gold);
                             RoundGold += gold;
-                            line = $"Monster {cell.Power}: ATK {fight.Roll} WIN  +${gold}";
+                            line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} WIN  +${gold}";
                         }
                         else
                         {
-                            line = $"Monster {cell.Power}: ATK {fight.Roll} LOSE  -{fight.Damage} HP";
+                            line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} LOSE  -{fight.Damage} HP";
                         }
                         break;
                     case CellType.Gold:
                         Player.AddGold(config.goldCellReward);
                         RoundGold += config.goldCellReward;
                         line = $"Gold cell  +${config.goldCellReward}";
+                        break;
+                    case CellType.Trap:
+                        Player.TakeDamage(config.trapDamage);
+                        line = $"Trap!  -{config.trapDamage} HP";
                         break;
                     case CellType.Heal:
                         int before = Player.Hp;
@@ -565,42 +580,29 @@ namespace VoidConverter.Game
         }
 
         /// <summary>
-        /// Pick-One rule: the round is over (turns used up or nothing left to fire). Missing the goal costs HP in a
-        /// Combat round and ends the run in the Boss round.
+        /// Pick-One rule: the round is over (turns used up, nothing left to fire, or no block fits). There is no gold
+        /// goal: a Combat round just ends, a Boss round is won.
         /// </summary>
         void SettleRound()
         {
-            int shortfall = Mathf.Max(0, GoalGold - RoundGold);
-            if (IsBossStage)
-            {
-                if (shortfall > 0)
-                {
-                    Phase = RunPhase.Defeated;
-                    Message += $"\nThe boss holds: ${RoundGold}/{GoalGold}\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
-                    return;
-                }
-                Message += $"\nBoss defeated! (${RoundGold}/{GoalGold})";
-                AdvanceStage(config.fadeDelaySeconds, false);
-                return;
-            }
+            // Nothing moves on by itself: the round is over, and the button (Next Stage / Defeat Boss) goes on.
+            RoundOver = true;
+            Message += IsBossStage
+                ? $"\nThe boss is open! (${RoundGold} earned)  Press the button to defeat it."
+                : $"\nStage {Stage} complete (${RoundGold} earned)  Press the button to go on.";
+        }
 
-            if (shortfall > 0)
-            {
-                int damage = shortfall * config.goalShortfallDamage;
-                Player.TakeDamage(damage);
-                Message += $"\nGoal missed (${RoundGold}/{GoalGold}): -{damage} HP";
-                if (Player.IsDead)
-                {
-                    Phase = RunPhase.Defeated;
-                    Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
-                    return;
-                }
-            }
-            else
-            {
-                Message += $"\nGoal reached (${RoundGold}/{GoalGold})";
-            }
-            FinishRound();
+        /// <summary>
+        /// Pick-One rule: throws away the block in hand for a new one. Limited per round (rerollsPerRound).
+        /// Returns false if no reroll is left or the game is not in a round.
+        /// </summary>
+        public bool RerollHand()
+        {
+            if (InputLocked || Phase != RunPhase.Playing || !PickOneRule || RerollsLeft <= 0) return false;
+            RerollsLeft--;
+            Hand.RerollAll(config.ToBlockSettings(), rng, Grid.CanPlaceAnywhere);
+            Changed?.Invoke();
+            return true;
         }
 
         public void SelectSlot(int index)

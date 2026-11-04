@@ -10,9 +10,12 @@ namespace VoidConverter.Core
         /// <summary>Added to both ends of the player's attack range.</summary>
         public int AttackBonus { get; }
         public int MaxHpBonus { get; }
+        /// <summary>Added to the player's Magic attack.</summary>
+        public int MagicBonus { get; }
 
-        public ItemDefinition(string id, string name, int attackBonus, int maxHpBonus)
+        public ItemDefinition(string id, string name, int attackBonus, int maxHpBonus, int magicBonus = 0)
         {
+            MagicBonus = magicBonus;
             Id = id;
             Name = name;
             AttackBonus = attackBonus;
@@ -26,6 +29,7 @@ namespace VoidConverter.Core
             {
                 var parts = new List<string>();
                 if (AttackBonus != 0) parts.Add($"ATK {AttackBonus:+#;-#}");
+                if (MagicBonus != 0) parts.Add($"MAG {MagicBonus:+#;-#}");
                 if (MaxHpBonus != 0) parts.Add($"HP {MaxHpBonus:+#;-#}");
                 return parts.Count > 0 ? string.Join(" ", parts) : "-";
             }

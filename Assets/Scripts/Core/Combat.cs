@@ -16,9 +16,10 @@ namespace VoidConverter.Core
         /// The player's attack is rolled from their range. An attack at least as high as the monster's power kills it;
         /// otherwise the player loses HP equal to the difference.
         /// </summary>
-        public static FightResult Fight(PlayerStats player, int monsterPower, Random rng)
+        public static FightResult Fight(PlayerStats player, int monsterPower, Random rng, bool magic = false)
         {
-            int roll = rng.Next(player.AttackMin, player.AttackMax + 1);
+            // A magic monster is met with the Magic attack (one fixed number), a physical one with the attack roll.
+            int roll = magic ? player.Magic : rng.Next(player.AttackMin, player.AttackMax + 1);
             bool won = roll >= monsterPower;
             int damage = won ? 0 : monsterPower - roll;
             player.TakeDamage(damage);

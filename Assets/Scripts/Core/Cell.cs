@@ -22,6 +22,8 @@ namespace VoidConverter.Core
         public bool Used;
         // Monster cells only: their attack. Normal void cells share Grid.VoidPower instead.
         public int Power;
+        // Monster cells only: true = a magic monster (beaten by the player's Magic), false = physical (beaten by Attack).
+        public bool Magic;
         // Void cells only.
         public VoidKind Kind;
         // Danger voids only: hit points left.

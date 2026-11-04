@@ -32,6 +32,7 @@ namespace VoidConverter.Core
         {
             var layout = GridLayout.Build(Width, Height, settings, rng);
             LastRelaxation = layout.Relaxation;
+            var assigned = AssignMonsterSpecs(layout.Types, settings, rng);
 
             for (int x = 0; x < Width; x++)
             {
@@ -39,14 +40,121 @@ namespace VoidConverter.Core
                 {
                     var type = layout.Types[x, y];
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
+                    bool magic = false;
+                    // With monster types, a monster cell takes one (by weight) instead of a random power.
+                    if (type == CellType.Monster && assigned != null)
+                    {
+                        var spec = assigned[x, y];
+                        power = spec.Power;
+                        magic = spec.Magic;
+                    }
                     // Empty cells start out spent, like a cell that was already activated.
-                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power };
+                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power, Magic = magic };
                 }
             }
 
             VoidPower = rng.Next(settings.VoidPowerMin, settings.VoidPowerMax + 1);
             BuffPower = settings.BuffPower;
             AssignVoidKinds(settings, rng);
+        }
+
+        // Hands the monster kinds out evenly: each kind gets its weighted share of the monster cells (not a random roll
+        // per cell), then cells are swapped until no kind forms a group of more than 2 edge-connected cells.
+        // Null when there are no monster kinds (monsters then roll a random power).
+        static MonsterSpec[,] AssignMonsterSpecs(CellType[,] types, GridSettings settings, Random rng)
+        {
+            var specs = settings.MonsterSpecs;
+            if (specs == null || specs.Length == 0) return null;
+            int w = types.GetLength(0), h = types.GetLength(1);
+            var cellsList = new List<(int x, int y)>();
+            for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) if (types[x, y] == CellType.Monster) cellsList.Add((x, y));
+            int n = cellsList.Count;
+
+            // Quotas by weight, the remainder drawn by weight.
+            float total = 0f;
+            foreach (var s in specs) total += Math.Max(0f, s.Weight);
+            var quota = new int[specs.Length];
+            int given = 0;
+            for (int i = 0; i < specs.Length; i++)
+            {
+                quota[i] = total <= 0f ? n / specs.Length : (int)(n * Math.Max(0f, specs[i].Weight) / total);
+                given += quota[i];
+            }
+            for (; given < n; given++) quota[Array.IndexOf(specs, PickSpec(specs, rng))]++;
+
+            var kinds = new List<int>();
+            for (int i = 0; i < specs.Length; i++) for (int k = 0; k < quota[i]; k++) kinds.Add(i);
+            for (int i = kinds.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (kinds[i], kinds[j]) = (kinds[j], kinds[i]);
+            }
+
+            var kindAt = new int[w, h];
+            for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) kindAt[x, y] = -1;
+            for (int i = 0; i < n; i++) kindAt[cellsList[i].x, cellsList[i].y] = kinds[i];
+
+            int bad = KindClusterExcess(kindAt, w, h);
+            for (int step = 0; step < 400 && bad > 0 && n > 1; step++)
+            {
+                var a = cellsList[rng.Next(n)];
+                var b = cellsList[rng.Next(n)];
+                if (kindAt[a.x, a.y] == kindAt[b.x, b.y]) continue;
+                (kindAt[a.x, a.y], kindAt[b.x, b.y]) = (kindAt[b.x, b.y], kindAt[a.x, a.y]);
+                int next = KindClusterExcess(kindAt, w, h);
+                if (next <= bad) bad = next;
+                else (kindAt[a.x, a.y], kindAt[b.x, b.y]) = (kindAt[b.x, b.y], kindAt[a.x, a.y]);
+            }
+
+            var result = new MonsterSpec[w, h];
+            foreach (var c in cellsList) result[c.x, c.y] = specs[kindAt[c.x, c.y]];
+            return result;
+        }
+
+        // Cells over 2 in every group of edge-connected monsters of the same kind.
+        static int KindClusterExcess(int[,] kindAt, int w, int h)
+        {
+            int excess = 0;
+            var seen = new bool[w, h];
+            var stack = new Stack<(int x, int y)>();
+            for (int x = 0; x < w; x++)
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    if (seen[x, y] || kindAt[x, y] < 0) continue;
+                    int kind = kindAt[x, y], size = 0;
+                    stack.Push((x, y));
+                    seen[x, y] = true;
+                    while (stack.Count > 0)
+                    {
+                        var p = stack.Pop();
+                        size++;
+                        for (int d = 0; d < 4; d++)
+                        {
+                            int nx = p.x + (d == 0 ? 1 : d == 1 ? -1 : 0), ny = p.y + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                            if (nx < 0 || ny < 0 || nx >= w || ny >= h || seen[nx, ny] || kindAt[nx, ny] != kind) continue;
+                            seen[nx, ny] = true;
+                            stack.Push((nx, ny));
+                        }
+                    }
+                    if (size > 2) excess += size - 2;
+                }
+            }
+            return excess;
+        }
+
+        static MonsterSpec PickSpec(MonsterSpec[] specs, Random rng)
+        {
+            float total = 0f;
+            foreach (var s in specs) total += Math.Max(0f, s.Weight);
+            if (total <= 0f) return specs[rng.Next(specs.Length)];
+            float roll = (float)rng.NextDouble() * total;
+            foreach (var s in specs)
+            {
+                roll -= Math.Max(0f, s.Weight);
+                if (roll < 0f) return s;
+            }
+            return specs[specs.Length - 1];
         }
 
         /// <summary>How much stronger a Buff void makes each monster next to it.</summary>
@@ -241,6 +349,8 @@ namespace VoidConverter.Core
             {
                 int pick = rng.Next(monsters.Count);
                 monsters[pick].Power = power;
+                // The boss's strong monsters hit the attack, never the (weaker) magic.
+                monsters[pick].Magic = false;
                 monsters.RemoveAt(pick);
             }
         }
@@ -347,7 +457,7 @@ namespace VoidConverter.Core
                 if (!InBounds(x, y)) continue;
                 var cell = cells[x, y];
                 if (cell.Used || cell.Covered || cell.Type == CellType.Empty) continue;
-                list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y), Kind = cell.Kind, Contaminated = cell.Contaminated });
+                list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y), Magic = cell.Magic, Kind = cell.Kind, Contaminated = cell.Contaminated });
             }
             return list;
         }
@@ -435,8 +545,22 @@ namespace VoidConverter.Core
         // Above 0: exactly this many monster cells, gold and heal fill up to RewardMax, and the rest are Empty.
         // 0 keeps the older rule (MonsterMin plus a weighted share of the leftover cells, no Empty cells).
         public int MonsterCount;
+        // Trap cells per board (Pick-One rule), placed by GridLayout together with the others.
+        public int TrapCount;
+        // Above 0: no group of edge-connected cells of the same kind (monster, trap, gold, heal) may be larger than
+        // this, and traps may not touch heal cells. The layout is shuffled and repaired until it holds.
+        public int MaxCluster;
+        // Same for monsters only (they are the most numerous kind). 0 = use MaxCluster.
+        public int MaxMonsterCluster;
+        // Monster types a monster cell may take (kind, required power, weight). Null/empty = a random physical power.
+        public MonsterSpec[] MonsterSpecs;
         public int GoldMin;
         public int HealMin;
+        // Pick-One rule (MonsterCount above 0): gold and heal counts are drawn from GoldMin..GoldMax and HealMin..HealMax.
+        public int GoldMax;
+        public int HealMax;
+        // Pick-One rule: trap count is drawn from TrapCount..TrapMax.
+        public int TrapMax;
         // Gold and heal cells together never exceed this (0 = no cap). Cells over the cap become monsters.
         public int RewardMax;
         public float MonsterWeight;
@@ -460,8 +584,17 @@ namespace VoidConverter.Core
         public int DangerHp;
     }
 
+    /// <summary>One kind of monster: beaten when the player's Attack (physical) or Magic is at least Power.</summary>
+    public struct MonsterSpec
+    {
+        public bool Magic;
+        public int Power;
+        public float Weight;
+    }
+
     public struct ActivatedCell
     {
+        public bool Magic;
         public int X;
         public int Y;
         public CellType Type;

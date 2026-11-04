@@ -14,6 +14,8 @@ namespace VoidConverter.Core
         // A tight monster cluster cap can reject most random layouts (about 1 in 50 pass at a cap of 8), so allow
         // plenty of retries. Each try takes a few microseconds.
         const int MaxAttempts = 4000;
+        // Pick-One mixing: shuffles tried per board (each one is then repaired by swaps).
+        const int MixAttempts = 40;
 
         public class Layout
         {
@@ -26,22 +28,40 @@ namespace VoidConverter.Core
         {
             var counts = ResolveCounts(width * height, s, rng);
 
+            // Mixing rule: keep the best of a few shuffles. A board that cannot meet it fully (many monsters make a
+            // tight cluster limit impossible) is still the least clumped one found, never a random one.
+            if (s.MaxCluster > 0)
+            {
+                CellType[,] best = null;
+                int bestViolations = int.MaxValue;
+                for (int attempt = 0; attempt < MixAttempts && bestViolations > 0; attempt++)
+                {
+                    var types = TryBuild(width, height, counts, s, rng, 0, out int violations);
+                    if (types != null && violations < bestViolations)
+                    {
+                        best = types;
+                        bestViolations = violations;
+                    }
+                }
+                if (best != null) return new Layout { Types = best, Relaxation = bestViolations > 0 ? 1 : 0 };
+            }
+
             for (int tier = 0; tier <= 2; tier++)
             {
                 for (int attempt = 0; attempt < MaxAttempts; attempt++)
                 {
-                    var types = TryBuild(width, height, counts, s, rng, tier);
+                    var types = TryBuild(width, height, counts, s, rng, tier, out _);
                     if (types != null) return new Layout { Types = types, Relaxation = tier };
                 }
             }
 
             // Unreachable in practice: tier 2 has no constraints and cannot fail.
-            return new Layout { Types = TryBuild(width, height, counts, s, rng, 2), Relaxation = 2 };
+            return new Layout { Types = TryBuild(width, height, counts, s, rng, 2, out _), Relaxation = 2 };
         }
 
         struct Counts
         {
-            public int Void, Monster, Gold, Heal, Empty;
+            public int Void, Monster, Gold, Heal, Trap, Empty;
         }
 
         // Exact void count, then each other type's minimum, then the leftover cells split by weight.
@@ -53,18 +73,15 @@ namespace VoidConverter.Core
             if (s.MonsterCount > 0)
             {
                 // Exact monster count; gold and heal reach RewardMax (at least their minimums); the rest stay empty.
-                c.Monster = Math.Min(s.MonsterCount, rest);
-                int room = rest - c.Monster;
-                c.Gold = Math.Min(Math.Max(s.GoldMin, 0), room);
-                c.Heal = Math.Min(Math.Max(s.HealMin, 0), room - c.Gold);
-                int rewardTarget = Math.Min(room, Math.Max(s.RewardMax, c.Gold + c.Heal));
-                float rewardWeight = s.GoldWeight + s.HealWeight;
-                while (c.Gold + c.Heal < rewardTarget)
-                {
-                    bool gold = rewardWeight <= 0f || rng.NextDouble() * rewardWeight < s.GoldWeight;
-                    if (gold) c.Gold++; else c.Heal++;
-                }
-                c.Empty = room - c.Gold - c.Heal;
+                // Traps are exact, gold and heal are drawn from their ranges, every other cell is a monster.
+                int trapMin = Math.Max(s.TrapCount, 0);
+                c.Trap = Math.Min(rng.Next(trapMin, Math.Max(s.TrapMax, trapMin) + 1), rest);
+                int room = rest - c.Trap;
+                int goldMin = Math.Max(s.GoldMin, 0), healMin = Math.Max(s.HealMin, 0);
+                c.Gold = Math.Min(rng.Next(goldMin, Math.Max(s.GoldMax, goldMin) + 1), room);
+                c.Heal = Math.Min(rng.Next(healMin, Math.Max(s.HealMax, healMin) + 1), room - c.Gold);
+                c.Monster = room - c.Gold - c.Heal;
+                c.Empty = 0;
                 return c;
             }
 
@@ -96,8 +113,9 @@ namespace VoidConverter.Core
         }
 
         // tier 0: all rules. tier 1: no monster cluster cap. tier 2: no spacing rules at all.
-        static CellType[,] TryBuild(int width, int height, Counts counts, GridSettings s, Random rng, int tier)
+        static CellType[,] TryBuild(int width, int height, Counts counts, GridSettings s, Random rng, int tier, out int violations)
         {
+            violations = 0;
             var positions = new List<(int x, int y)>();
             for (int x = 0; x < width; x++) for (int y = 0; y < height; y++) positions.Add((x, y));
             Shuffle(positions, rng);
@@ -137,18 +155,92 @@ namespace VoidConverter.Core
                 types[p.x, p.y] = i < counts.Gold ? CellType.Gold : CellType.Heal;
             }
 
-            // 3) Everything left is a monster, except the cells that are meant to stay empty (random ones).
+            // 3) Traps and empty cells take random leftover cells; everything else left is a monster.
             var leftover = new List<(int x, int y)>();
             foreach (var p in positions) if (!taken[p.x, p.y]) leftover.Add(p);
             Shuffle(leftover, rng);
             for (int i = 0; i < leftover.Count; i++)
             {
-                types[leftover[i].x, leftover[i].y] = i < counts.Empty ? CellType.Empty : CellType.Monster;
+                CellType t = CellType.Monster;
+                if (i < counts.Trap) t = CellType.Trap;
+                else if (i < counts.Trap + counts.Empty) t = CellType.Empty;
+                types[leftover[i].x, leftover[i].y] = t;
             }
 
-            if (tier == 0 && s.MonsterMaxCluster > 0 && LargestMonsterCluster(types, width, height) > s.MonsterMaxCluster) return null;
+            // 4) Mixing rule: shuffle non-void cells until no kind clumps (see GridSettings.MaxCluster).
+            if (tier == 0 && s.MaxCluster > 0) violations = Mix(types, width, height, s.MaxCluster, s.MaxMonsterCluster > 0 ? s.MaxMonsterCluster : s.MaxCluster, rng);
+
+            if (tier == 0 && s.MaxCluster <= 0 && s.MonsterMaxCluster > 0 && LargestMonsterCluster(types, width, height) > s.MonsterMaxCluster) return null;
             return types;
         }
+
+        // Hill climbing: swap two non-void cells of different kinds and keep the swap if the board is no worse.
+        // Returns the violations left (0 = the board follows every rule).
+        static int Mix(CellType[,] types, int width, int height, int maxCluster, int maxMonsterCluster, Random rng)
+        {
+            int violations = Violations(types, width, height, maxCluster, maxMonsterCluster);
+            for (int step = 0; step < 600 && violations > 0; step++)
+            {
+                int x1 = rng.Next(width), y1 = rng.Next(height), x2 = rng.Next(width), y2 = rng.Next(height);
+                var a = types[x1, y1];
+                var b = types[x2, y2];
+                if (a == b || a == CellType.Void || b == CellType.Void) continue;
+                types[x1, y1] = b;
+                types[x2, y2] = a;
+                int next = Violations(types, width, height, maxCluster, maxMonsterCluster);
+                if (next <= violations) violations = next;
+                else
+                {
+                    types[x1, y1] = a;
+                    types[x2, y2] = b;
+                }
+            }
+            return violations;
+        }
+
+        // Cells over the cluster limit (summed over every group of monsters, traps, gold or heal) plus every trap touching a heal.
+        static int Violations(CellType[,] types, int width, int height, int maxCluster, int maxMonsterCluster)
+        {
+            int total = 0;
+            var seen = new bool[width, height];
+            var stack = new Stack<(int x, int y)>();
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    var t = types[x, y];
+                    if (t == CellType.Empty || t == CellType.Void) continue;
+
+                    // Traps may not touch heal cells (checked once per pair: right and down neighbours).
+                    if (x + 1 < width && IsTrapHealPair(t, types[x + 1, y])) total++;
+                    if (y + 1 < height && IsTrapHealPair(t, types[x, y + 1])) total++;
+
+                    if (seen[x, y]) continue;
+                    int size = 0;
+                    stack.Push((x, y));
+                    seen[x, y] = true;
+                    while (stack.Count > 0)
+                    {
+                        var p = stack.Pop();
+                        size++;
+                        foreach (var d in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+                        {
+                            int nx = p.x + d.Item1, ny = p.y + d.Item2;
+                            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                            if (seen[nx, ny] || types[nx, ny] != t) continue;
+                            seen[nx, ny] = true;
+                            stack.Push((nx, ny));
+                        }
+                    }
+                    int limit = t == CellType.Monster ? maxMonsterCluster : maxCluster;
+                    if (size > limit) total += size - limit;
+                }
+            }
+            return total;
+        }
+
+        static bool IsTrapHealPair(CellType a, CellType b) =>
+            (a == CellType.Trap && b == CellType.Heal) || (a == CellType.Heal && b == CellType.Trap);
 
         // Chebyshev distance counts diagonals as touching; Manhattan distance does not.
         static bool FarEnough((int x, int y) p, List<(int x, int y)> others, int minSpacing, bool chebyshev)

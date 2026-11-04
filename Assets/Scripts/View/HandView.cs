@@ -202,7 +202,7 @@ namespace VoidConverter.View
         void ShowPickOdds(Int2[] cells, Int2 origin)
         {
             var candidates = controller.Grid.CandidatesUnder(cells, origin.X, origin.Y);
-            var odds = PickOdds.Analyze(controller.Player, candidates, config.goldCellReward, config.healCellAmount, config.goldPerMonsterPower);
+            var odds = PickOdds.Analyze(controller.Player, candidates, config.goldCellReward, config.healCellAmount, config.goldPerMonsterPower, config.trapDamage);
 
             if (odds.Candidates == 0)
             {
@@ -220,6 +220,7 @@ namespace VoidConverter.View
                     string outcome = certain ? $"beat {odds.MonsterWins} of {odds.Monsters}" : $"win {Percent(odds.MonsterWinChance)}%";
                     lines.Add($"Monster {Percent(odds.MonsterChance)}%  ({outcome})");
                 }
+                if (odds.Traps > 0) lines.Add($"Trap {Percent(odds.TrapChance)}%  (-{config.trapDamage} HP)");
                 if (odds.Heals > 0) lines.Add($"Heal {Percent(odds.HealChance)}%  (+{config.healCellAmount} HP)");
                 lines.Add($"Avg ${odds.ExpectedGold:0.0}   HP {(odds.ExpectedHeal - odds.ExpectedDamage):+0.0;-0.0;0.0}");
                 ghostInfo.text = string.Join("\n", lines);

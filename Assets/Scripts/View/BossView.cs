@@ -72,7 +72,7 @@ namespace VoidConverter.View
             status.text = ready
                 ? "Click to\ndefeat!"
                 : controller.PickOneRule
-                    ? $"Goal\n${controller.RoundGold}/{controller.GoalGold}"
+                    ? $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}"
                 : controller.ClearRule
                     ? $"Monsters\nleft {controller.MonstersLeft}"
                     : $"Hold out\n{Mathf.Min(controller.PlacementsUsed, controller.BossHoldTarget)}/{controller.BossHoldTarget}";

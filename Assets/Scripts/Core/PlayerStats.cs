@@ -7,6 +7,7 @@ namespace VoidConverter.Core
         readonly int baseMaxHp;
         readonly int baseAttackMin;
         readonly int baseAttackMax;
+        readonly int baseMagic;
         readonly List<ItemDefinition> items = new List<ItemDefinition>();
 
         /// <summary>Items carried for the rest of the run. The same item can appear more than once.</summary>
@@ -25,6 +26,8 @@ namespace VoidConverter.Core
 
         public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus) + BlockBonus;
         public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus) + BlockBonus;
+        /// <summary>The attack against magic monsters (one fixed number).</summary>
+        public int Magic => baseMagic + SumOf(i => i.MagicBonus);
 
         /// <summary>Rises whenever void cells are activated. Higher corruption makes void cells spawn monsters.</summary>
         public int Corruption { get; private set; }
@@ -34,8 +37,9 @@ namespace VoidConverter.Core
 
         public bool IsDead => Hp <= 0;
 
-        public PlayerStats(int maxHp, int attackMin, int attackMax, int maxCorruption)
+        public PlayerStats(int maxHp, int attackMin, int attackMax, int maxCorruption, int magic = 0)
         {
+            baseMagic = magic;
             baseMaxHp = maxHp;
             Hp = maxHp;
             baseAttackMin = attackMin;

@@ -54,11 +54,11 @@ namespace VoidConverter.View
         void Refresh()
         {
             var p = controller.Player;
-            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {(p.AttackMin == p.AttackMax ? p.AttackMin.ToString() : p.AttackMin + "-" + p.AttackMax)}" +
+            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {(p.AttackMin == p.AttackMax ? p.AttackMin.ToString() : p.AttackMin + "-" + p.AttackMax)}    MAG {p.Magic}" +
                          $"    Gold {p.Gold}    ";
             if (controller.PickOneRule && controller.Phase == RunPhase.Playing)
             {
-                stats.text += $"Turn {controller.PlacementsUsed}/{controller.GoalTurns}    Goal ${controller.RoundGold}/{controller.GoalGold}";
+                stats.text += $"Block {controller.PlacementsUsed}/{controller.GoalTurns}    Leave from {controller.MinPlacements}    Rerolls {controller.RerollsLeft} (E)";
             }
             else if (controller.ClearRule && controller.Phase == RunPhase.Playing)
             {

@@ -18,20 +18,58 @@ MonoBehaviour:
   cellGap: 0.06
   voidCount: 0
   monsterMin: 10
-  monsterCount: 9
-  goldMin: 7
-  healMin: 3
-  rewardMax: 11
+  monsterCount: 12
+  trapCount: 4
+  trapMax: 5
+  goldMin: 3
+  goldMax: 4
+  healMin: 2
+  healMax: 3
+  rewardMax: 9
   monsterWeight: 5
-  goldWeight: 1
+  goldWeight: 3
   healWeight: 1
   voidMinSpacing: 2
-  rewardMinSpacing: 2
+  rewardMinSpacing: 1
+  maxCluster: 2
+  maxMonsterCluster: 3
   monsterMaxCluster: 8
-  monsterPowerMin: 2
-  monsterPowerMax: 4
-  playerMaxHp: 10
-  playerAttack: 3
+  monsterPowerMin: 1
+  monsterPowerMax: 6
+  playerMaxHp: 6
+  playerAttack: 2
+  playerMagic: 1
+  monsterTypes:
+  - name: Slime
+    magic: 1
+    power: 1
+    weight: 1
+    firstStage: 1
+  - name: Beast
+    magic: 0
+    power: 3
+    weight: 1
+    firstStage: 1
+  - name: Wisp
+    magic: 1
+    power: 2
+    weight: 1
+    firstStage: 3
+  - name: Brute
+    magic: 0
+    power: 4
+    weight: 1
+    firstStage: 3
+  - name: Mage
+    magic: 1
+    power: 3
+    weight: 1
+    firstStage: 5
+  - name: Ogre
+    magic: 0
+    power: 5
+    weight: 1
+    firstStage: 5
   maxCorruption: 10
   voidPowerMin: 2
   voidPowerMax: 4
@@ -49,10 +87,11 @@ MonoBehaviour:
   clearTurnLimit: 5
   overtimeGrowth: 1
   pickOneRule: 1
-  goalGold: 10
-  bossGoalGold: 12
-  goalTurns: 6
-  goalShortfallDamage: 1
+  pickMinPlacements: 4
+  bossMinPlacements: 6
+  goalTurns: 7
+  trapDamage: 1
+  rerollsPerRound: 2
   coveredCellsBlock: 1
   maxPlacements: 6
   stages: 00000000010000000000000001000000000000000200000003000000
@@ -61,7 +100,7 @@ MonoBehaviour:
   bossHoldPlacements: 5
   bossMonsterGrowth: 0
   bossStrongMonsterCount: 3
-  bossStrongMonsterPower: 4
+  bossStrongMonsterPower: 5
   fadeSeconds: 0.3
   fadeDelaySeconds: 0.5
   items:
@@ -69,10 +108,17 @@ MonoBehaviour:
     displayName: Power Ring
     attackBonus: 1
     maxHpBonus: 0
+    magicBonus: 0
   - id: life_charm
     displayName: Life Charm
     attackBonus: 0
     maxHpBonus: 2
+    magicBonus: 0
+  - id: arcane_ring
+    displayName: Arcane Ring
+    attackBonus: 0
+    maxHpBonus: 0
+    magicBonus: 1
   events:
   - id: abandoned_camp
     title: Abandoned Camp
@@ -181,14 +227,17 @@ MonoBehaviour:
   - itemId: power_ring
     healAmount: 10
     price: 20
+  - itemId: arcane_ring
+    healAmount: 10
+    price: 20
   - itemId: life_charm
     healAmount: 10
     price: 15
   - itemId: 
     healAmount: 4
     price: 14
-  handSize: 3
-  fixedHand: 1
+  handSize: 1
+  fixedHand: 0
   fixedHandSizes: 020000000300000004000000
   attackBonus2: 0
   attackBonus3: 0

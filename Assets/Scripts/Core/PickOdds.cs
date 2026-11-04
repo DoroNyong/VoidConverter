@@ -10,6 +10,7 @@ namespace VoidConverter.Core
         public int Monsters;
         public int Golds;
         public int Heals;
+        public int Traps;
         /// <summary>How many of the covered monsters the player is sure to beat (all of them with a single attack number).</summary>
         public int MonsterWins;
         /// <summary>Average win chance (0..1) over the covered monsters, 0 if there are none.</summary>
@@ -23,6 +24,7 @@ namespace VoidConverter.Core
 
         public float MonsterChance => Candidates == 0 ? 0f : (float)Monsters / Candidates;
         public float GoldChance => Candidates == 0 ? 0f : (float)Golds / Candidates;
+        public float TrapChance => Candidates == 0 ? 0f : (float)Traps / Candidates;
         public float HealChance => Candidates == 0 ? 0f : (float)Heals / Candidates;
     }
 
@@ -34,7 +36,7 @@ namespace VoidConverter.Core
         /// A monster fight is the player's attack roll (uniform over their range) against its power.
         /// </summary>
         public static PickOddsResult Analyze(PlayerStats player, IReadOnlyList<ActivatedCell> candidates,
-            int goldCellReward, int healCellAmount, float goldPerMonsterPower)
+            int goldCellReward, int healCellAmount, float goldPerMonsterPower, int trapDamage)
         {
             var result = new PickOddsResult { Candidates = candidates.Count };
             if (candidates.Count == 0) return result;
@@ -48,11 +50,16 @@ namespace VoidConverter.Core
                 {
                     case CellType.Monster:
                         result.Monsters++;
-                        float win = player.WinChance(cell.Power);
+                        float win = cell.Magic ? (player.Magic >= cell.Power ? 1f : 0f) : player.WinChance(cell.Power);
                         winSum += win;
                         if (win >= 1f) result.MonsterWins++;
                         goldSum += win * cell.Power * goldPerMonsterPower;
                         float damage = 0f;
+                        if (cell.Magic)
+                        {
+                            damageSum += System.Math.Max(0, cell.Power - player.Magic);
+                            break;
+                        }
                         for (int roll = min; roll <= max; roll++)
                         {
                             if (roll < cell.Power) damage += cell.Power - roll;
@@ -62,6 +69,10 @@ namespace VoidConverter.Core
                     case CellType.Gold:
                         result.Golds++;
                         goldSum += goldCellReward;
+                        break;
+                    case CellType.Trap:
+                        result.Traps++;
+                        damageSum += trapDamage;
                         break;
                     case CellType.Heal:
                         result.Heals++;

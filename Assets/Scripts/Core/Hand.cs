@@ -74,6 +74,18 @@ namespace VoidConverter.Core
             }
         }
 
+        /// <summary>Throws away every block in the hand and draws a fresh set (nothing is selected afterwards).</summary>
+        public void RerollAll(BlockSettings settings, Random rng, Func<BlockShape, bool> canPlace = null)
+        {
+            for (int i = 0; i < Slots.Length; i++)
+            {
+                Slots[i] = null;
+                Rotations[i] = 0;
+            }
+            Selected = -1;
+            Fill(settings, rng, canPlace);
+        }
+
         public bool AnyPlaceable(Func<BlockShape, bool> canPlace)
         {
             foreach (var shape in Slots)

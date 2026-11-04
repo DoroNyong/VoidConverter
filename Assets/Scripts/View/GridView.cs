@@ -14,6 +14,8 @@ namespace VoidConverter.View
         static readonly Color RewardLabelColor = new Color(1f, 1f, 1f, 0.9f);
         static readonly Color VoidColor = new Color(0.55f, 0.3f, 0.85f);
         // Empty cells are spent from the start, so this is shown dimmed like any used cell.
+        static readonly Color MagicMonsterColor = new Color(0.25f, 0.45f, 0.9f);
+        static readonly Color TrapColor = new Color(0.8f, 0.4f, 0.1f);
         static readonly Color EmptyColor = new Color(0.6f, 0.62f, 0.7f);
         static readonly Color VoidPowerColor = new Color(1f, 1f, 1f, 0.32f);
         static readonly Color BuffVoidColor = new Color(1f, 0.95f, 0.3f);
@@ -88,7 +90,7 @@ namespace VoidConverter.View
                     var cell = grid[x, y];
                     // Fired cells and cells a block covered are dead: dimmed, no label.
                     bool dead = cell.Used || cell.Covered;
-                    Color color = ColorOf(cell.Type);
+                    Color color = cell.Type == CellType.Monster && cell.Magic ? MagicMonsterColor : ColorOf(cell.Type);
                     if (dead) color *= UsedDim;
                     color.a = 1f;
                     Vector2 center = origin + new Vector2(x * Step, y * Step);
@@ -110,7 +112,7 @@ namespace VoidConverter.View
                     // covers together, so they are shown on the drag ghost rather than per cell.
                     if (cell.Type == CellType.Monster && !dead)
                     {
-                        TextUtil.AddText(transform, "Power", center, grid.EffectivePower(x, y).ToString(), 64, 0.07f, Color.white, 10);
+                        TextUtil.AddText(transform, "Power", center, (cell.Magic ? "M" : "A") + grid.EffectivePower(x, y), 64, 0.07f, Color.white, 10);
                     }
                     else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !dead)
                     {
@@ -121,6 +123,10 @@ namespace VoidConverter.View
                         TextUtil.AddText(transform, "Buff Power", center, "+" + grid.BuffPower, 64, 0.06f, Color.black, 10);
                     }
                     // Reward cells say what they give. Locked cells show nothing.
+                    else if (cell.Type == CellType.Trap && !dead)
+                    {
+                        TextUtil.AddText(transform, "Trap Damage", center, "-" + config.trapDamage, 64, 0.07f, Color.white, 10);
+                    }
                     else if (cell.Type == CellType.Gold && !dead)
                     {
                         TextUtil.AddText(transform, "Gold Reward", center, "$" + config.goldCellReward, 64, 0.06f, RewardLabelColor, 10);
@@ -207,6 +213,7 @@ namespace VoidConverter.View
                 case CellType.Gold: return GoldColor;
                 case CellType.Heal: return HealColor;
                 case CellType.Empty: return EmptyColor;
+                case CellType.Trap: return TrapColor;
                 default: return VoidColor;
             }
         }

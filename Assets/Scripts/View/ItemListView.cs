@@ -118,7 +118,7 @@ namespace VoidConverter.View
             {
                 var item = first[id];
                 int n = counts[id];
-                var total = new ItemDefinition(id, item.Name, item.AttackBonus * n, item.MaxHpBonus * n);
+                var total = new ItemDefinition(id, item.Name, item.AttackBonus * n, item.MaxHpBonus * n, item.MagicBonus * n);
                 lines.Add($"{item.Name}{(n > 1 ? " x" + n : "")}  {total.Summary}");
             }
             return string.Join("\n", lines);
