@@ -31,8 +31,12 @@ namespace VoidConverter.View
         const int StrongPower = 5;
 
         GameController controller;
-        GameConfig config;
         GridView gridView;
+        // The camera the camera effects (shake, punch, screen flash) act on, and the size of one cell.
+        Camera cam;
+        float cellSize = 1f;
+        // True when driven by code (the effect comparison scene) instead of a GameController.
+        bool standalone;
         AudioSource source;
         AudioClip winClip, winMagicClip, goldClip, healClip, loseClip, trapClip;
         SpriteRenderer screenFlash;
@@ -53,6 +57,7 @@ namespace VoidConverter.View
 
         void Start()
         {
+            if (standalone) return;
             controller = FindFirstObjectByType<GameController>();
             gridView = FindFirstObjectByType<GridView>();
             if (controller == null || gridView == null)
@@ -60,10 +65,27 @@ namespace VoidConverter.View
                 enabled = false;
                 return;
             }
-            config = controller.Config;
 
             // The sounds need a listener; the default camera normally has one.
             if (FindFirstObjectByType<AudioListener>() == null && Camera.main != null) Camera.main.gameObject.AddComponent<AudioListener>();
+            Init(Camera.main, controller.Config.cellSize);
+            controller.Fired += OnFired;
+        }
+
+        /// <summary>
+        /// Drives the effects from code instead of a GameController: they act on <paramref name="camera"/> and are
+        /// played with <see cref="Play"/>. Used by the effect comparison scene, which supplies its own listener.
+        /// </summary>
+        public void Setup(Camera camera, float cell)
+        {
+            standalone = true;
+            Init(camera, cell);
+        }
+
+        void Init(Camera camera, float cell)
+        {
+            cam = camera;
+            cellSize = cell;
             source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
             source.spatialBlend = 0f;
@@ -76,10 +98,9 @@ namespace VoidConverter.View
             trapClip = SfxSynth.Trap();
 
             screenFlash = SpriteUtil.AddSquare(transform, "Screen Flash", Vector2.zero, 1f, new Color(0.9f, 0.1f, 0.1f, 0f), ScreenFlashOrder);
-            screenFlash.gameObject.AddComponent<CameraFill>();
+            var fill = screenFlash.gameObject.AddComponent<CameraFill>();
+            fill.Target = cam;
             screenFlash.enabled = false;
-
-            controller.Fired += OnFired;
         }
 
         void OnDestroy()
@@ -89,6 +110,7 @@ namespace VoidConverter.View
 
         void Update()
         {
+            if (standalone) return;
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.mKey.wasPressedThisFrame)
             {
@@ -102,7 +124,12 @@ namespace VoidConverter.View
 
         void OnFired(FeedbackEvent e)
         {
-            Vector2 pos = gridView.CellToWorld(e.X, e.Y);
+            Play(e, gridView.CellToWorld(e.X, e.Y));
+        }
+
+        /// <summary>Plays the effects for one fired cell at a world position.</summary>
+        public void Play(FeedbackEvent e, Vector2 pos)
+        {
             Color color;
             string text;
             AudioClip clip;
@@ -186,12 +213,12 @@ namespace VoidConverter.View
         // A white flash on the fired cell that grows and fades.
         IEnumerator Pop(Vector2 pos)
         {
-            var sr = SpriteUtil.AddSquare(transform, "Pop", pos, config.cellSize, new Color(1f, 1f, 1f, 0.85f), EffectOrder);
+            var sr = SpriteUtil.AddSquare(transform, "Pop", pos, cellSize, new Color(1f, 1f, 1f, 0.85f), EffectOrder);
             const float duration = 0.3f;
             for (float t = 0f; t < duration; t += Dt)
             {
                 float k = t / duration;
-                sr.transform.localScale = Vector3.one * config.cellSize * Mathf.Lerp(1f, 1.5f, k);
+                sr.transform.localScale = Vector3.one * cellSize * Mathf.Lerp(1f, 1.5f, k);
                 sr.color = new Color(1f, 1f, 1f, 0.85f * (1f - k));
                 yield return null;
             }
@@ -281,7 +308,6 @@ namespace VoidConverter.View
 
         void StartShake(float strength, float duration)
         {
-            var cam = Camera.main;
             if (cam == null) return;
             if (shaking != null)
             {
@@ -307,7 +333,6 @@ namespace VoidConverter.View
         // The view zooms in a little on impact and eases back out.
         void StartPunch(float amount, float duration)
         {
-            var cam = Camera.main;
             if (cam == null) return;
             if (punching != null)
             {

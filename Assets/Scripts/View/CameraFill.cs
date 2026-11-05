@@ -5,9 +5,12 @@ namespace VoidConverter.View
     /// <summary>Keeps a 1x1 square sprite exactly covering the main camera's view, also after the window is resized.</summary>
     public class CameraFill : MonoBehaviour
     {
+        /// <summary>The camera to cover; the main camera when not set.</summary>
+        public Camera Target;
+
         void LateUpdate()
         {
-            var cam = Camera.main;
+            var cam = Target != null ? Target : Camera.main;
             if (cam == null) return;
 
             float height = cam.orthographicSize * 2f;
