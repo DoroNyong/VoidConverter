@@ -94,6 +94,8 @@ namespace VoidConverter.Game
 
         /// <summary>Raised after the board, hand, player or phase changed. Views must re-read state, never cache it.</summary>
         public event Action Changed;
+        /// <summary>Raised once per block placement with the cell that fired and its outcome. Only for sound and effects.</summary>
+        public event Action<FeedbackEvent> Fired;
 
         /// <summary>
         /// Plays a screen transition around a state change: it must call <paramref name="change"/> once while the
@@ -515,6 +517,7 @@ namespace VoidConverter.Game
             if (result == null) return false;
 
             string line;
+            FeedbackEvent? feedback = null;
             if (result.Activated.Count == 0)
             {
                 line = "Nothing under the block";
@@ -522,6 +525,7 @@ namespace VoidConverter.Game
             else
             {
                 var cell = result.Activated[0];
+                int fx = cell.X, fy = cell.Y;
                 switch (cell.Type)
                 {
                     case CellType.Monster:
@@ -533,25 +537,30 @@ namespace VoidConverter.Game
                             Player.AddGold(gold);
                             RoundGold += gold;
                             line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} WIN  +${gold}";
+                            feedback = new FeedbackEvent { Kind = FeedbackKind.Win, X = fx, Y = fy, Amount = gold, Magic = cell.Magic, Power = cell.Power };
                         }
                         else
                         {
                             line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} LOSE  -{fight.Damage} HP";
+                            feedback = new FeedbackEvent { Kind = FeedbackKind.Lose, X = fx, Y = fy, Amount = fight.Damage, Magic = cell.Magic, Power = cell.Power };
                         }
                         break;
                     case CellType.Gold:
                         Player.AddGold(config.goldCellReward);
                         RoundGold += config.goldCellReward;
                         line = $"Gold cell  +${config.goldCellReward}";
+                        feedback = new FeedbackEvent { Kind = FeedbackKind.Gold, X = fx, Y = fy, Amount = config.goldCellReward };
                         break;
                     case CellType.Trap:
                         Player.TakeDamage(config.trapDamage);
                         line = $"Trap!  -{config.trapDamage} HP";
+                        feedback = new FeedbackEvent { Kind = FeedbackKind.Trap, X = fx, Y = fy, Amount = config.trapDamage };
                         break;
                     case CellType.Heal:
                         int before = Player.Hp;
                         Player.Heal(config.healCellAmount);
                         line = $"Heal cell  +{Player.Hp - before} HP";
+                        feedback = new FeedbackEvent { Kind = FeedbackKind.Heal, X = fx, Y = fy, Amount = Player.Hp - before };
                         break;
                     default:
                         line = "Nothing happened";
@@ -576,6 +585,7 @@ namespace VoidConverter.Game
             }
 
             Changed?.Invoke();
+            if (feedback.HasValue) Fired?.Invoke(feedback.Value);
             return true;
         }
 
