@@ -57,6 +57,8 @@ namespace VoidConverter.Data
         public int amount;
         [Tooltip("GainItem only: id of the catalog item to give.")]
         public string itemId;
+        [Tooltip("TileWeight only: the kind of cell made likelier / rarer. Amount is the percent (30 = +30%, -30 = -30%, compounding).")]
+        public CellType cellType;
     }
 
     [Serializable]
@@ -88,7 +90,7 @@ namespace VoidConverter.Data
                 foreach (var e in c.effects)
                 {
                     var item = e.kind == EventEffectKind.GainItem ? findItem(e.itemId) : null;
-                    effects.Add(new EventEffect(e.kind, e.amount, item));
+                    effects.Add(new EventEffect(e.kind, e.amount, item, e.cellType));
                 }
                 list.Add(new EventChoice(c.label, effects));
             }
@@ -257,6 +259,10 @@ namespace VoidConverter.Data
             new ItemData { id = "arcane_ring", displayName = "Arcane Ring", magicBonus = 1 },
         };
 
+        [Header("Tile Weights")]
+        [Tooltip("Pick-One: no kind of cell may become likelier than this share of a block's pick because of event tile weights (a kind that is already above it without weights stays as it is). 0.75 = 75%.")]
+        [Range(0.5f, 1f)] public float maxTileChance = 0.75f;
+
         [Header("Events")]
         [Tooltip("The pool the Event stages draw from, without repeats until every event was seen.")]
         public List<EventData> events = new List<EventData>
@@ -325,6 +331,30 @@ namespace VoidConverter.Data
                 choices = new List<EventChoiceData>
                 {
                     Choice("Make an offering", Effect(EventEffectKind.LoseItem, 1), Effect(EventEffectKind.MaxHp, 3)),
+                    Choice("Leave"),
+                },
+            },
+            new EventData
+            {
+                id = "whetstone_rune",
+                title = "Whetstone & Rune Stone",
+                description = "Two tools lie on a stump.\nYou can take only one.",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Sharpen your blade", Effect(EventEffectKind.Attack, 1)),
+                    Choice("Carve the rune", Effect(EventEffectKind.Magic, 1)),
+                    Choice("Walk away"),
+                },
+            },
+            new EventData
+            {
+                id = "twin_altar",
+                title = "Twin Altar",
+                description = "Two altars, blade and flame.\nOne gives, the other takes.",
+                choices = new List<EventChoiceData>
+                {
+                    Choice("Kneel at the blade", Effect(EventEffectKind.Attack, 2), Effect(EventEffectKind.Magic, -1)),
+                    Choice("Kneel at the flame", Effect(EventEffectKind.Magic, 2), Effect(EventEffectKind.Attack, -1)),
                     Choice("Leave"),
                 },
             },
@@ -456,7 +486,8 @@ namespace VoidConverter.Data
             return offers;
         }
 
-        public PlayerStats CreatePlayer() => new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption, playerMagic);
+        public PlayerStats CreatePlayer() =>
+            new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption, playerMagic) { MaxTileChance = maxTileChance };
 
         /// <summary>The attack bonus of a block with this many cells.</summary>
         public int AttackBonusFor(int cellCount)

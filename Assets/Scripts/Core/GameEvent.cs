@@ -15,6 +15,13 @@ namespace VoidConverter.Core
         LoseItem,
         // Gain a specific item. Not offered when the item is unknown (a bad id in the data).
         GainItem,
+        // Permanent attack for the rest of the run (negative lowers it; the lowest attack stays at 1 or more).
+        Attack,
+        // Permanent magic for the rest of the run (negative lowers it, down to 0).
+        Magic,
+        // Makes one kind of cell likelier (+) or rarer (-) when a block picks the cell that fires. Amount is a
+        // percent that compounds: +30 twice gives x1.69. Bounded by PlayerStats.MaxTileChance.
+        TileWeight,
     }
 
     /// <summary>One thing a choice does to the player.</summary>
@@ -24,12 +31,15 @@ namespace VoidConverter.Core
         public int Amount { get; }
         /// <summary>The item a GainItem effect gives.</summary>
         public ItemDefinition Item { get; }
+        /// <summary>The cell kind a TileWeight effect changes.</summary>
+        public CellType Cell { get; }
 
-        public EventEffect(EventEffectKind kind, int amount, ItemDefinition item = null)
+        public EventEffect(EventEffectKind kind, int amount, ItemDefinition item = null, CellType cell = CellType.Monster)
         {
             Kind = kind;
             Amount = amount;
             Item = item;
+            Cell = cell;
         }
 
         /// <summary>Short effect text such as "Gold +10" or "HP +5" (ASCII, the HUD font has no Korean).</summary>
@@ -45,6 +55,9 @@ namespace VoidConverter.Core
                     case EventEffectKind.MaxHp: return $"Max HP {Amount:+#;-#}";
                     case EventEffectKind.LoseItem: return "Lose an item";
                     case EventEffectKind.GainItem: return Item != null ? $"Get {Item.Name}" : "Get ?";
+                    case EventEffectKind.Attack: return $"ATK {Amount:+#;-#}";
+                    case EventEffectKind.Magic: return $"MAG {Amount:+#;-#}";
+                    case EventEffectKind.TileWeight: return $"{Cell} cells {Amount:+#;-#}%";
                     default: return "-";
                 }
             }
@@ -59,6 +72,8 @@ namespace VoidConverter.Core
                 case EventEffectKind.Damage: return player.Hp > Amount;
                 case EventEffectKind.LoseItem: return player.Items.Count > 0;
                 case EventEffectKind.GainItem: return Item != null;
+                case EventEffectKind.Attack: return player.CanAddAttack(Amount);
+                case EventEffectKind.Magic: return player.CanAddMagic(Amount);
                 default: return true;
             }
         }
@@ -91,6 +106,15 @@ namespace VoidConverter.Core
                 case EventEffectKind.GainItem:
                     if (Item == null) return "No item";
                     player.AddItem(Item);
+                    return Summary;
+                case EventEffectKind.Attack:
+                    player.AddAttack(Amount);
+                    return Summary;
+                case EventEffectKind.Magic:
+                    player.AddMagic(Amount);
+                    return Summary;
+                case EventEffectKind.TileWeight:
+                    player.MultiplyTileWeight(Cell, 1f + Amount / 100f);
                     return Summary;
                 default:
                     return "";

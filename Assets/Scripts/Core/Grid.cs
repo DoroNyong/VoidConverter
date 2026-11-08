@@ -481,7 +481,7 @@ namespace VoidConverter.Core
         /// they were. The result lists that one cell, or nothing if the block covers no fresh cell.
         /// Returns null if the block does not fit.
         /// </summary>
-        public PlacementResult PlaceOne(Int2[] blockCells, int originX, int originY, Random rng)
+        public PlacementResult PlaceOne(Int2[] blockCells, int originX, int originY, Random rng, PlayerStats player = null)
         {
             if (!CanPlace(blockCells, originX, originY)) return null;
 
@@ -495,7 +495,8 @@ namespace VoidConverter.Core
             }
             if (candidates.Count == 0) return result;
 
-            var pick = candidates[rng.Next(candidates.Count)];
+            // Equal chances unless the player's tile weights say otherwise (PickChance).
+            var pick = candidates[PickChance.Pick(candidates, player, rng)];
             cells[pick.X, pick.Y].Used = true;
             result.Activated.Add(pick);
             return result;

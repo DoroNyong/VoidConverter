@@ -223,6 +223,54 @@ MonoBehaviour:
         itemId: 
     - label: Leave
       effects: []
+  - id: whetstone_rune
+    title: Whetstone & Rune Stone
+    description: 'Two tools lie on a stump.
+
+      You can take only one.'
+    choices:
+    - label: Sharpen your blade
+      effects:
+      - kind: 6
+        amount: 1
+        itemId:
+        cellType: 0
+    - label: Carve the rune
+      effects:
+      - kind: 7
+        amount: 1
+        itemId:
+        cellType: 0
+    - label: Walk away
+      effects: []
+  - id: twin_altar
+    title: Twin Altar
+    description: 'Two altars, blade and flame.
+
+      One gives, the other takes.'
+    choices:
+    - label: Kneel at the blade
+      effects:
+      - kind: 6
+        amount: 2
+        itemId:
+        cellType: 0
+      - kind: 7
+        amount: -1
+        itemId:
+        cellType: 0
+    - label: Kneel at the flame
+      effects:
+      - kind: 7
+        amount: 2
+        itemId:
+        cellType: 0
+      - kind: 6
+        amount: -1
+        itemId:
+        cellType: 0
+    - label: Leave
+      effects: []
   shopOffers:
   - itemId: power_ring
     healAmount: 10

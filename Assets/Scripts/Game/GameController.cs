@@ -513,7 +513,7 @@ namespace VoidConverter.Game
             var cells = Hand.SelectedCells();
             if (cells == null) return false;
 
-            var result = Grid.PlaceOne(cells, originX, originY, rng);
+            var result = Grid.PlaceOne(cells, originX, originY, rng, Player);
             if (result == null) return false;
 
             string line;

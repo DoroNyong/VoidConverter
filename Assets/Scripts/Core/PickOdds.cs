@@ -22,17 +22,19 @@ namespace VoidConverter.Core
         /// <summary>Average HP healed of one placement.</summary>
         public float ExpectedHeal;
 
-        public float MonsterChance => Candidates == 0 ? 0f : (float)Monsters / Candidates;
-        public float GoldChance => Candidates == 0 ? 0f : (float)Golds / Candidates;
-        public float TrapChance => Candidates == 0 ? 0f : (float)Traps / Candidates;
-        public float HealChance => Candidates == 0 ? 0f : (float)Heals / Candidates;
+        // Chance (0..1) that the cell which fires is of this kind. Equal per cell unless tile weights are set.
+        public float MonsterChance;
+        public float GoldChance;
+        public float TrapChance;
+        public float HealChance;
     }
 
     /// <summary>Pure math for the pick-one rule: a block lets one random covered fresh cell fire.</summary>
     public static class PickOdds
     {
         /// <summary>
-        /// <paramref name="candidates"/> are the fresh cells under the block. Every one is equally likely.
+        /// <paramref name="candidates"/> are the fresh cells under the block. Each one's chance comes from
+        /// <see cref="PickChance"/> (equal unless the player has tile weights).
         /// A monster fight is the player's attack roll (uniform over their range) against its power.
         /// </summary>
         public static PickOddsResult Analyze(PlayerStats player, IReadOnlyList<ActivatedCell> candidates,
@@ -41,50 +43,57 @@ namespace VoidConverter.Core
             var result = new PickOddsResult { Candidates = candidates.Count };
             if (candidates.Count == 0) return result;
 
+            var chances = PickChance.Probabilities(candidates, player);
             float winSum = 0f, goldSum = 0f, damageSum = 0f, healSum = 0f;
             int min = player.AttackMin, max = player.AttackMax;
             int rolls = max - min + 1;
-            foreach (var cell in candidates)
+            for (int i = 0; i < candidates.Count; i++)
             {
+                var cell = candidates[i];
+                float chance = chances[i];
                 switch (cell.Type)
                 {
                     case CellType.Monster:
                         result.Monsters++;
+                        result.MonsterChance += chance;
                         float win = cell.Magic ? (player.Magic >= cell.Power ? 1f : 0f) : player.WinChance(cell.Power);
-                        winSum += win;
+                        winSum += win * chance;
                         if (win >= 1f) result.MonsterWins++;
-                        goldSum += win * cell.Power * goldPerMonsterPower;
+                        goldSum += chance * win * cell.Power * goldPerMonsterPower;
                         float damage = 0f;
                         if (cell.Magic)
                         {
-                            damageSum += System.Math.Max(0, cell.Power - player.Magic);
+                            damageSum += chance * System.Math.Max(0, cell.Power - player.Magic);
                             break;
                         }
                         for (int roll = min; roll <= max; roll++)
                         {
                             if (roll < cell.Power) damage += cell.Power - roll;
                         }
-                        damageSum += damage / rolls;
+                        damageSum += chance * damage / rolls;
                         break;
                     case CellType.Gold:
                         result.Golds++;
-                        goldSum += goldCellReward;
+                        result.GoldChance += chance;
+                        goldSum += chance * goldCellReward;
                         break;
                     case CellType.Trap:
                         result.Traps++;
-                        damageSum += trapDamage;
+                        result.TrapChance += chance;
+                        damageSum += chance * trapDamage;
                         break;
                     case CellType.Heal:
                         result.Heals++;
-                        healSum += healCellAmount;
+                        result.HealChance += chance;
+                        healSum += chance * healCellAmount;
                         break;
                 }
             }
 
-            result.MonsterWinChance = result.Monsters == 0 ? 0f : winSum / result.Monsters;
-            result.ExpectedGold = goldSum / candidates.Count;
-            result.ExpectedDamage = damageSum / candidates.Count;
-            result.ExpectedHeal = healSum / candidates.Count;
+            result.MonsterWinChance = result.MonsterChance <= 0f ? 0f : winSum / result.MonsterChance;
+            result.ExpectedGold = goldSum;
+            result.ExpectedDamage = damageSum;
+            result.ExpectedHeal = healSum;
             return result;
         }
     }

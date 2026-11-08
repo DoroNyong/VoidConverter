@@ -24,10 +24,51 @@ namespace VoidConverter.Core
         /// </summary>
         public int BlockBonus { get; set; }
 
-        public int AttackMin => baseAttackMin + SumOf(i => i.AttackBonus) + BlockBonus;
-        public int AttackMax => baseAttackMax + SumOf(i => i.AttackBonus) + BlockBonus;
+        // Permanent attack / magic from events (may be negative), on top of the base and the items.
+        int bonusAttack;
+        int bonusMagic;
+
+        public int AttackMin => baseAttackMin + bonusAttack + SumOf(i => i.AttackBonus) + BlockBonus;
+        public int AttackMax => baseAttackMax + bonusAttack + SumOf(i => i.AttackBonus) + BlockBonus;
         /// <summary>The attack against magic monsters (one fixed number).</summary>
-        public int Magic => baseMagic + SumOf(i => i.MagicBonus);
+        public int Magic => baseMagic + bonusMagic + SumOf(i => i.MagicBonus);
+
+        // Weight of each cell kind when a block picks the one cell that fires (1 = normal). Events change it.
+        readonly float[] tileWeights = NewTileWeights();
+
+        static float[] NewTileWeights()
+        {
+            var w = new float[System.Enum.GetValues(typeof(CellType)).Length];
+            for (int i = 0; i < w.Length; i++) w[i] = 1f;
+            return w;
+        }
+
+        /// <summary>
+        /// No cell kind may become likelier than this share of one block's pick (unless it already was without any
+        /// weights). The rest of the chance goes to the other kinds. Set from GameConfig.maxTileChance.
+        /// </summary>
+        public float MaxTileChance { get; set; } = 0.75f;
+
+        /// <summary>How heavily this kind of cell is weighted in the pick (1 = normal, 1.3 = +30%).</summary>
+        public float TileWeight(CellType type) => tileWeights[(int)type];
+
+        /// <summary>Multiplies the weight (compounding): +30% twice gives 1.69. Kept between 0.05 and 100.</summary>
+        public void MultiplyTileWeight(CellType type, float factor)
+        {
+            tileWeights[(int)type] = System.Math.Max(0.05f, System.Math.Min(100f, tileWeights[(int)type] * factor));
+        }
+
+        /// <summary>False when the change would drop the lowest attack below 1.</summary>
+        public bool CanAddAttack(int amount) => baseAttackMin + bonusAttack + SumOf(i => i.AttackBonus) + amount >= 1;
+
+        /// <summary>False when the change would drop magic below 0.</summary>
+        public bool CanAddMagic(int amount) => baseMagic + bonusMagic + SumOf(i => i.MagicBonus) + amount >= 0;
+
+        /// <summary>Permanent attack change for the rest of the run (every roll of the range moves).</summary>
+        public void AddAttack(int amount) => bonusAttack += amount;
+
+        /// <summary>Permanent magic change for the rest of the run.</summary>
+        public void AddMagic(int amount) => bonusMagic += amount;
 
         /// <summary>Rises whenever void cells are activated. Higher corruption makes void cells spawn monsters.</summary>
         public int Corruption { get; private set; }
