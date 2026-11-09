@@ -47,7 +47,7 @@ namespace VoidConverter.View
             ghostCells = new SpriteRenderer[MaxBlockCells];
             for (int i = 0; i < MaxBlockCells; i++)
             {
-                ghostCells[i] = SpriteUtil.AddSquare(ghostRoot, "Ghost Cell", Vector2.zero, config.cellSize * 0.92f, GhostValidColor, 5);
+                ghostCells[i] = SpriteUtil.AddDiamond(ghostRoot, "Ghost Cell", Vector2.zero, config.TileWidth * 0.92f, config.cellSize * 0.92f, GhostValidColor, 5);
             }
             ghostInfo = TextUtil.AddText(ghostRoot, "Ghost Info", Vector2.zero, "", 64, 0.036f, Color.white, 20);
             // Left-aligned so the lines read as a list and grow rightwards from the grid edge.
@@ -89,6 +89,7 @@ namespace VoidConverter.View
                 if (slot >= 0 && controller.Hand.Select(slot))
                 {
                     dragging = true;
+                    hasSnap = false;
                     hoveredSlot = -1;
                     Rebuild();
                 }
@@ -105,8 +106,9 @@ namespace VoidConverter.View
             {
                 dragging = false;
                 HideGhost();
-                var origin = DropOrigin(world);
-                controller.TryPlace(origin.X, origin.Y);
+                // Released over a spot the ghost snapped to: place it there. Released far from any legal spot: put it back.
+                if (TrySnap(world, out var origin)) controller.TryPlace(origin.X, origin.Y);
+                hasSnap = false;
                 // A drop that did not place the block puts it back; it is no longer "held".
                 controller.ClearSelection();
                 hoveredSlot = SlotAt(world);
@@ -114,20 +116,56 @@ namespace VoidConverter.View
             }
         }
 
-        /// <summary>Lower-left cell of the block when its center is held at the cursor.</summary>
-        Int2 DropOrigin(Vector3 world)
-        {
-            var cells = controller.Hand.SelectedCells();
-            if (cells == null) return new Int2(0, 0);
+        // How far (in world units) the cursor may be from a block's center for the block to snap to a legal spot.
+        // Past it the ghost follows the cursor, red, and releasing puts the block back.
+        float SnapRadius => config.StepX * 0.5f;
+        // A new spot must be this much closer than the current one to take over (stops flicker between two equal spots).
+        const float SnapHysteresis = 0.12f;
 
-            int maxX = 0, maxY = 0;
-            foreach (var c in cells)
+        bool hasSnap;
+        Int2 snapOrigin;
+
+        /// <summary>
+        /// The legal spot for the held block: of every place it fits (CanPlace, so spent cells, blocked cells and any
+        /// cell the board lacks are skipped), the one whose center is nearest the cursor on screen, within
+        /// <see cref="SnapRadius"/>. Returns false if there is none.
+        /// </summary>
+        bool TrySnap(Vector3 world, out Int2 origin)
+        {
+            origin = new Int2(0, 0);
+            var cells = controller.Hand.SelectedCells();
+            if (cells == null) return false;
+
+            var grid = controller.Grid;
+            Vector2 cursor = world;
+            float best = SnapRadius;
+            bool found = false;
+            // A block's cells span 0..3 either way, so every origin that can touch the board lies in this range.
+            for (int ox = -4; ox < grid.Width; ox++)
             {
-                maxX = Mathf.Max(maxX, c.X);
-                maxY = Mathf.Max(maxY, c.Y);
+                for (int oy = -4; oy < grid.Height; oy++)
+                {
+                    if (!grid.CanPlace(cells, ox, oy)) continue;
+                    float d = Vector2.Distance(BlockCenter(cells, ox, oy), cursor);
+                    // The spot the ghost is on already gets a small head start.
+                    if (hasSnap && ox == snapOrigin.X && oy == snapOrigin.Y) d -= SnapHysteresis;
+                    if (d >= best) continue;
+                    best = d;
+                    origin = new Int2(ox, oy);
+                    found = true;
+                }
             }
-            Vector2 g = gridView.WorldToGrid(world);
-            return new Int2(Mathf.RoundToInt(g.x - maxX * 0.5f), Mathf.RoundToInt(g.y - maxY * 0.5f));
+            hasSnap = found;
+            if (found) snapOrigin = origin;
+            return found;
+        }
+
+        /// <summary>Screen position of the middle of the block when its origin cell is (ox, oy).</summary>
+        Vector2 BlockCenter(Int2[] cells, int ox, int oy)
+        {
+            Vector2 sum = Vector2.zero;
+            foreach (var c in cells) sum += gridView.CellToWorld(ox + c.X, oy + c.Y);
+            return sum / cells.Length;
         }
 
         void UpdateGhost(Vector3 world)
@@ -139,14 +177,26 @@ namespace VoidConverter.View
                 return;
             }
 
-            var origin = DropOrigin(world);
-            bool valid = controller.Grid.CanPlace(cells, origin.X, origin.Y);
+            bool valid = TrySnap(world, out var origin);
             for (int i = 0; i < ghostCells.Length; i++)
             {
                 bool used = i < cells.Length;
                 ghostCells[i].gameObject.SetActive(used);
                 if (!used) continue;
-                Vector2 pos = gridView.CellToWorld(origin.X + cells[i].X, origin.Y + cells[i].Y);
+                Vector2 pos;
+                if (valid)
+                {
+                    // Snapped: the ghost sits exactly on the cells the block would take.
+                    pos = gridView.CellToWorld(origin.X + cells[i].X, origin.Y + cells[i].Y);
+                }
+                else
+                {
+                    // Nothing legal nearby: the ghost follows the cursor freely, red, so it is clear it will not land.
+                    Vector2 own = config.CellOffset(cells[i].X, cells[i].Y);
+                    Vector2 mid = Vector2.zero;
+                    foreach (var c in cells) mid += config.CellOffset(c.X, c.Y);
+                    pos = (Vector2)world + own - mid / cells.Length;
+                }
                 ghostCells[i].transform.position = new Vector3(pos.x, pos.y, 0f);
                 ghostCells[i].color = valid ? GhostValidColor : GhostInvalidColor;
             }
@@ -188,7 +238,7 @@ namespace VoidConverter.View
                 ghostInfo.color = GridView.ChanceColor(win);
                 controller.Player.BlockBonus = 0;
                 // Fixed spot beside the grid, so it never covers the cells the player is judging.
-                float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + SidePanelGap;
+                float sideX = controller.Config.GridHalfWidth + SidePanelGap;
                 ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
                 ghostInfo.gameObject.SetActive(true);
             }
@@ -227,7 +277,7 @@ namespace VoidConverter.View
                 // The more gold on average, the greener.
                 ghostInfo.color = GridView.ChanceColor(Mathf.Clamp01(odds.ExpectedGold / 2f));
             }
-            float sideX = (controller.Config.gridWidth * (controller.Config.cellSize + controller.Config.cellGap)) * 0.5f + SidePanelGap;
+            float sideX = controller.Config.GridHalfWidth + SidePanelGap;
             ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
             ghostInfo.gameObject.SetActive(true);
         }
@@ -277,10 +327,15 @@ namespace VoidConverter.View
             ghostInfo.gameObject.SetActive(false);
         }
 
+        /// <summary>Screen offset of a block cell (x, y) in the hand, with tiles <paramref name="height"/> high.</summary>
+        Vector2 DiamondStep(float height, float x, float y)
+        {
+            return new Vector2((x - y) * height * config.tileAspect * 0.5f, (x + y) * height * 0.5f);
+        }
+
         Vector2 SlotCenter(int index)
         {
-            float step = config.cellSize + config.cellGap;
-            float gridHalfHeight = config.gridHeight * step * 0.5f;
+            float gridHalfHeight = config.GridHalfHeight;
             float pitch = config.handSlotSize + config.handSlotGap;
             float x = (index - (controller.Hand.Size - 1) * 0.5f) * pitch;
             float y = -(gridHalfHeight + 0.6f + config.handSlotSize * 0.5f);
@@ -327,12 +382,13 @@ namespace VoidConverter.View
                     maxX = Mathf.Max(maxX, c.X);
                     maxY = Mathf.Max(maxY, c.Y);
                 }
+                // The block is drawn in the board's diamond projection, so it looks the way it will on the board.
                 float mini = config.handMiniCellSize;
-                Vector2 offset = center - new Vector2(maxX * mini * 0.5f, maxY * mini * 0.5f);
+                Vector2 half = DiamondStep(mini, maxX * 0.5f, maxY * 0.5f);
                 foreach (var c in cells)
                 {
-                    SpriteUtil.AddSquare(transform, "Block Cell", offset + new Vector2(c.X * mini, c.Y * mini),
-                        mini * 0.92f, BlockColor, 1);
+                    Vector2 pos = center + DiamondStep(mini, c.X, c.Y) - half;
+                    SpriteUtil.AddDiamond(transform, "Block Cell", pos, mini * config.tileAspect * 0.92f, mini * 0.92f, BlockColor, 1);
                 }
             }
         }

@@ -105,8 +105,39 @@ namespace VoidConverter.Data
         [Header("Grid")]
         public int gridWidth = 5;
         public int gridHeight = 5;
+        [Tooltip("Height of one diamond tile (its top-to-bottom diagonal).")]
         public float cellSize = 1f;
         public float cellGap = 0.06f;
+        [Tooltip("Width of a diamond tile divided by its height. 1 = a square turned 45 degrees, 1.7 = wide and low so the board fills a wide screen.")]
+        public float tileAspect = 1.7f;
+
+        // The board is drawn as a diamond: the cell (x, y) sits at ((x - y) * StepX / 2, (x + y) * StepY / 2)
+        // from the board center, so x runs to the upper right and y to the upper left.
+        /// <summary>Height / width of one diagonal step between neighbouring cells (their centers are StepX/2 apart sideways, StepY/2 up).</summary>
+        public float StepY => cellSize + cellGap;
+        public float StepX => StepY * tileAspect;
+        public float TileWidth => cellSize * tileAspect;
+        /// <summary>Half the width of the whole board, vertex to vertex.</summary>
+        public float GridHalfWidth => (gridWidth + gridHeight - 2) * StepX * 0.25f + TileWidth * 0.5f;
+        /// <summary>Half the height of the whole board, vertex to vertex.</summary>
+        public float GridHalfHeight => (gridWidth + gridHeight - 2) * StepY * 0.25f + cellSize * 0.5f;
+
+        /// <summary>Screen offset (relative to the board center) of a cell given in fractional cell coordinates.</summary>
+        public Vector2 CellOffset(float x, float y)
+        {
+            float u = x - (gridWidth - 1) * 0.5f;
+            float v = y - (gridHeight - 1) * 0.5f;
+            return new Vector2((u - v) * StepX * 0.5f, (u + v) * StepY * 0.5f);
+        }
+
+        /// <summary>The reverse of <see cref="CellOffset"/>: fractional cell coordinates (cell centers on whole numbers).</summary>
+        public Vector2 OffsetToCell(Vector2 offset)
+        {
+            float diff = offset.x * 2f / StepX;
+            float sum = offset.y * 2f / StepY;
+            return new Vector2((sum + diff) * 0.5f + (gridWidth - 1) * 0.5f, (sum - diff) * 0.5f + (gridHeight - 1) * 0.5f);
+        }
+
         [Header("Cell Counts")]
         [Tooltip("Exactly this many void cells per board.")]
         public int voidCount = 0;

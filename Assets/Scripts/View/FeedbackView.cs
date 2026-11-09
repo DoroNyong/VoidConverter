@@ -35,6 +35,10 @@ namespace VoidConverter.View
         // The camera the camera effects (shake, punch, screen flash) act on, and the size of one cell.
         Camera cam;
         float cellSize = 1f;
+        // Width / height of a tile. Above 1 the board is a flattened diamond, and the effects follow its shape
+        // (a diamond pop, flattened rings and bursts). 1 keeps the plain square look of the comparison scene.
+        float tileAspect = 1f;
+        bool Diamond => tileAspect > 1.001f;
         // True when driven by code (the effect comparison scene) instead of a GameController.
         bool standalone;
         AudioSource source;
@@ -69,6 +73,7 @@ namespace VoidConverter.View
             // The sounds need a listener; the default camera normally has one.
             if (FindFirstObjectByType<AudioListener>() == null && Camera.main != null) Camera.main.gameObject.AddComponent<AudioListener>();
             Init(Camera.main, controller.Config.cellSize);
+            tileAspect = controller.Config.tileAspect;
             controller.Fired += OnFired;
         }
 
@@ -213,12 +218,14 @@ namespace VoidConverter.View
         // A white flash on the fired cell that grows and fades.
         IEnumerator Pop(Vector2 pos)
         {
-            var sr = SpriteUtil.AddSquare(transform, "Pop", pos, cellSize, new Color(1f, 1f, 1f, 0.85f), EffectOrder);
+            var sr = Diamond
+                ? SpriteUtil.AddDiamond(transform, "Pop", pos, cellSize * tileAspect, cellSize, new Color(1f, 1f, 1f, 0.85f), EffectOrder)
+                : SpriteUtil.AddSquare(transform, "Pop", pos, cellSize, new Color(1f, 1f, 1f, 0.85f), EffectOrder);
             const float duration = 0.3f;
             for (float t = 0f; t < duration; t += Dt)
             {
                 float k = t / duration;
-                sr.transform.localScale = Vector3.one * cellSize * Mathf.Lerp(1f, 1.5f, k);
+                sr.transform.localScale = new Vector3(Diamond ? tileAspect : 1f, 1f, 1f) * cellSize * Mathf.Lerp(1f, 1.5f, k);
                 sr.color = new Color(1f, 1f, 1f, 0.85f * (1f - k));
                 yield return null;
             }
@@ -253,7 +260,8 @@ namespace VoidConverter.View
                 float k = t / duration;
                 // Fast at first, then slowing down.
                 float eased = 1f - (1f - k) * (1f - k);
-                sr.transform.localScale = Vector3.one * Mathf.Lerp(fromSize, toSize, eased);
+                // On the flattened board a ring lies on the ground: an ellipse as flat as a tile.
+                sr.transform.localScale = new Vector3(1f, Diamond ? 1f / tileAspect : 1f, 1f) * Mathf.Lerp(fromSize, toSize, eased);
                 sr.color = new Color(color.r, color.g, color.b, startAlpha * (1f - k));
                 yield return null;
             }

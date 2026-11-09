@@ -58,6 +58,44 @@ namespace VoidConverter.View
             return sr;
         }
 
+        static Sprite diamond;
+
+        /// <summary>A 1x1 world-unit white diamond (a square turned 45 degrees, touching the middle of every edge), tinted via SpriteRenderer.color.</summary>
+        public static Sprite Diamond
+        {
+            get
+            {
+                if (diamond == null)
+                {
+                    const int size = 128;
+                    var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+                    float c = (size - 1) * 0.5f;
+                    for (int y = 0; y < size; y++)
+                    {
+                        for (int x = 0; x < size; x++)
+                        {
+                            // 0 at the center, 1 on the edge of the diamond; a one-pixel soft edge.
+                            float d = (Mathf.Abs(x - c) + Mathf.Abs(y - c)) / c;
+                            float a = Mathf.Clamp01((1f - d) * c * 0.7f);
+                            tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                        }
+                    }
+                    tex.Apply();
+                    diamond = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+                }
+                return diamond;
+            }
+        }
+
+        /// <summary>A diamond that is <paramref name="width"/> wide and <paramref name="height"/> high.</summary>
+        public static SpriteRenderer AddDiamond(Transform parent, string name, Vector2 localPos, float width, float height, Color color, int order)
+        {
+            var sr = AddSquare(parent, name, localPos, 1f, color, order);
+            sr.sprite = Diamond;
+            sr.transform.localScale = new Vector3(width, height, 1f);
+            return sr;
+        }
+
         public static SpriteRenderer AddSquare(Transform parent, string name, Vector2 localPos, float size, Color color, int order)
         {
             var go = new GameObject(name);

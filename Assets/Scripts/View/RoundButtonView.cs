@@ -33,8 +33,7 @@ namespace VoidConverter.View
             config = controller.Config;
             cam = Camera.main;
 
-            float step = config.cellSize + config.cellGap;
-            float gridHalfHeight = config.gridHeight * step * 0.5f;
+            float gridHalfHeight = config.GridHalfHeight;
             float handWidth = config.handSize * config.handSlotSize + (config.handSize - 1) * config.handSlotGap;
             // Level with the hand slots, just past the last one.
             float x = handWidth * 0.5f + 0.25f + Size.x * 0.5f;

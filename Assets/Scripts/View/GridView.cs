@@ -57,24 +57,19 @@ namespace VoidConverter.View
             if (controller != null) controller.Changed -= Rebuild;
         }
 
-        float Step => config.cellSize + config.cellGap;
-
-        Vector2 GridOrigin(Grid grid)
-        {
-            return new Vector2(-(grid.Width - 1) * Step * 0.5f, -(grid.Height - 1) * Step * 0.5f);
-        }
+        // The board is a diamond (see GameConfig.CellOffset): this is the only place that turns cells into screen
+        // positions and back, so the input and the effects follow whatever shape the board has.
 
         /// <summary>World position of a cell's center.</summary>
         public Vector2 CellToWorld(int x, int y)
         {
-            return (Vector2)transform.position + GridOrigin(controller.Grid) + new Vector2(x * Step, y * Step);
+            return (Vector2)transform.position + config.CellOffset(x, y);
         }
 
         /// <summary>World position to fractional cell coordinates (cell centers sit on whole numbers).</summary>
         public Vector2 WorldToGrid(Vector3 world)
         {
-            Vector2 local = (Vector2)(world - transform.position) - GridOrigin(controller.Grid);
-            return local / Step;
+            return config.OffsetToCell((Vector2)(world - transform.position));
         }
 
         void Rebuild()
@@ -82,7 +77,8 @@ namespace VoidConverter.View
             for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
 
             var grid = controller.Grid;
-            Vector2 origin = GridOrigin(grid);
+            float tileW = config.TileWidth;
+            float tileH = config.cellSize;
             for (int x = 0; x < grid.Width; x++)
             {
                 for (int y = 0; y < grid.Height; y++)
@@ -93,19 +89,22 @@ namespace VoidConverter.View
                     Color color = cell.Type == CellType.Monster && cell.Magic ? MagicMonsterColor : ColorOf(cell.Type);
                     if (dead) color *= UsedDim;
                     color.a = 1f;
-                    Vector2 center = origin + new Vector2(x * Step, y * Step);
-                    SpriteUtil.AddSquare(transform, $"Cell {x},{y}", center, config.cellSize, color, 0);
-                    if (cell.Covered && grid.BlockCovered) AddBlockedFrame(center);
+                    Vector2 center = config.CellOffset(x, y);
+                    // A cell a block covered gets a red frame: a red diamond with the cell's own diamond inset on top.
+                    bool blocked = cell.Covered && grid.BlockCovered;
+                    if (blocked) SpriteUtil.AddDiamond(transform, $"Blocked Frame {x},{y}", center, tileW, tileH, BlockedFrameColor, -1);
+                    float inset = blocked ? 1f - BlockedFrameThickness * 2f : 1f;
+                    SpriteUtil.AddDiamond(transform, $"Cell {x},{y}", center, tileW * inset, tileH * inset, color, 0);
 
                     if (cell.Type == CellType.Void && !dead && cell.Kind != VoidKind.Normal)
                     {
-                        SpriteUtil.AddSquare(transform, $"Void Kind {x},{y}", center, config.cellSize * VoidInnerScale, KindColor(cell.Kind), 1);
+                        SpriteUtil.AddDiamond(transform, $"Void Kind {x},{y}", center, tileW * VoidInnerScale, tileH * VoidInnerScale, KindColor(cell.Kind), 1);
                     }
-                    // A contaminated cell keeps its look, with a small marker in the corner.
+                    // A contaminated cell keeps its look, with a small marker at its top corner.
                     if (cell.Contaminated && !dead)
                     {
-                        float corner = config.cellSize * 0.5f - config.cellSize * ContaminationScale * 0.5f;
-                        SpriteUtil.AddSquare(transform, $"Contaminated {x},{y}", center + new Vector2(corner, corner), config.cellSize * ContaminationScale, SpreadVoidColor, 2);
+                        Vector2 top = center + new Vector2(0f, tileH * 0.5f - tileH * ContaminationScale * 0.5f);
+                        SpriteUtil.AddDiamond(transform, $"Contaminated {x},{y}", top, tileW * ContaminationScale, tileH * ContaminationScale, SpreadVoidColor, 2);
                     }
 
                     // Monster power is public. Locked cells show nothing. The odds depend on which monsters a block
@@ -144,24 +143,6 @@ namespace VoidConverter.View
             }
         }
 
-        /// <summary>A red frame around a cell: no block can be placed here.</summary>
-        void AddBlockedFrame(Vector2 center)
-        {
-            float size = config.cellSize;
-            float t = size * BlockedFrameThickness;
-            float edge = size * 0.5f - t * 0.5f;
-            AddFrameBar(center + new Vector2(0f, edge), size, t);
-            AddFrameBar(center + new Vector2(0f, -edge), size, t);
-            AddFrameBar(center + new Vector2(edge, 0f), t, size);
-            AddFrameBar(center + new Vector2(-edge, 0f), t, size);
-        }
-
-        void AddFrameBar(Vector2 pos, float width, float height)
-        {
-            var bar = SpriteUtil.AddSquare(transform, "Blocked Frame", pos, 1f, BlockedFrameColor, 3);
-            bar.transform.localScale = new Vector3(width, height, 1f);
-        }
-
         /// <summary>Frames the grid with the hand area below it, whatever the screen aspect ratio.</summary>
         void FitCamera()
         {
@@ -170,8 +151,8 @@ namespace VoidConverter.View
             cam.orthographic = true;
             fittedAspect = cam.aspect;
 
-            float gridHalfWidth = config.gridWidth * Step * 0.5f;
-            float gridHalfHeight = config.gridHeight * Step * 0.5f;
+            float gridHalfWidth = config.GridHalfWidth;
+            float gridHalfHeight = config.GridHalfHeight;
             float handWidth = config.handSize * config.handSlotSize + (config.handSize - 1) * config.handSlotGap;
 
             float top = gridHalfHeight + HudSpace;

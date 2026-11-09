@@ -30,9 +30,8 @@ namespace VoidConverter.View
             config = controller.Config;
             cam = Camera.main;
 
-            float step = config.cellSize + config.cellGap;
-            // Just right of the grid, level with its middle.
-            center = new Vector2(config.gridWidth * step * 0.5f + 0.4f + Size.x * 0.5f, 0f);
+            // Just right of the board's right corner, level with its middle.
+            center = new Vector2(config.GridHalfWidth + 0.4f + Size.x * 0.5f, 0f);
 
             root = new GameObject("Boss Marker");
             root.transform.SetParent(transform, false);

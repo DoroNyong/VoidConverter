@@ -28,8 +28,7 @@ namespace VoidConverter.View
             controller = FindFirstObjectByType<GameController>();
             config = controller.Config;
 
-            float step = config.cellSize + config.cellGap;
-            float top = config.gridHeight * step * 0.5f;
+            float top = config.GridHalfHeight;
             stats = TextUtil.AddText(transform, "Stats", new Vector2(0f, top + 1.5f), "", 64, 0.04f, StatsColor, 10);
             voidStats = TextUtil.AddText(transform, "Void Stats", new Vector2(0f, top + 1.05f), "", 48, 0.034f, VoidColor, 10);
             message = TextUtil.AddText(transform, "Message", new Vector2(0f, top + 0.5f), "", 48, 0.032f, MessageColor, 10);
@@ -37,8 +36,8 @@ namespace VoidConverter.View
             // A dim shade over the grid with big text, shown when the run is cleared or lost.
             banner = new GameObject("Banner");
             banner.transform.SetParent(transform, false);
-            float gridSize = config.gridWidth * step;
-            SpriteUtil.AddSquare(banner.transform, "Shade", Vector2.zero, gridSize, BannerShade, 30);
+            // The shade is a diamond the size of the board.
+            SpriteUtil.AddDiamond(banner.transform, "Shade", Vector2.zero, config.GridHalfWidth * 2f, config.GridHalfHeight * 2f, BannerShade, 30);
             bannerText = TextUtil.AddText(banner.transform, "Banner Text", Vector2.zero, "", 64, 0.09f, ClearColor, 40);
             banner.SetActive(false);
 
