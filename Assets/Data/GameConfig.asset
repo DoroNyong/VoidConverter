@@ -94,7 +94,7 @@ MonoBehaviour:
   rerollsPerRound: 2
   coveredCellsBlock: 1
   maxPlacements: 6
-  stages: 00000000010000000000000001000000000000000200000003000000
+  stages: 0000000000000000010000000000000000000000010000000000000000000000010000000200000003000000
   minPlacementsToEnd: 3
   corruptionDecayPerRound: 2
   bossHoldPlacements: 5
@@ -120,22 +120,30 @@ MonoBehaviour:
     maxHpBonus: 0
     magicBonus: 1
   events:
-  - id: abandoned_camp
-    title: Abandoned Camp
-    description: 'You find a deserted camp.
+  - id: lucky_shrine
+    title: Lucky Shrine
+    description: 'A small shrine glows faintly.
 
-      Choose one.'
+      Its blessing bends luck your way.'
     choices:
-    - label: Take the coins
+    - label: Pray for health
       effects:
-      - kind: 0
-        amount: 4
-        itemId: 
-    - label: Rest by the fire
+      - kind: 8
+        amount: 30
+        itemId:
+        cellType: 2
+    - label: Pray for fortune
       effects:
-      - kind: 1
-        amount: 2
-        itemId: 
+      - kind: 8
+        amount: 30
+        itemId:
+        cellType: 1
+    - label: Pray for safety
+      effects:
+      - kind: 8
+        amount: -30
+        itemId:
+        cellType: 4
   - id: shady_peddler
     title: Shady Peddler
     description: 'A peddler grins at you.
@@ -160,20 +168,6 @@ MonoBehaviour:
         itemId: 
     - label: Walk away
       effects: []
-  - id: spring
-    title: Clear Spring
-    description: Clean water bubbles from the ground.
-    choices:
-    - label: Drink
-      effects:
-      - kind: 1
-        amount: 3
-        itemId: 
-    - label: Bottle some water
-      effects:
-      - kind: 0
-        amount: 2
-        itemId: 
   - id: wandering_trader
     title: Wandering Trader
     description: 'A trader opens her pack.

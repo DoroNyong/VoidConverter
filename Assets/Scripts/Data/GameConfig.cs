@@ -259,8 +259,11 @@ namespace VoidConverter.Data
         [Tooltip("The run is cleared after the last stage. Combat and Boss stages play a grid round.")]
         public List<StageType> stages = new List<StageType>
         {
-            StageType.Combat, StageType.Event, StageType.Combat, StageType.Event,
-            StageType.Combat, StageType.Shop, StageType.Boss,
+            // One cycle is two short fights and an event, three times, then the shop and the boss.
+            StageType.Combat, StageType.Combat, StageType.Event,
+            StageType.Combat, StageType.Combat, StageType.Event,
+            StageType.Combat, StageType.Combat, StageType.Event,
+            StageType.Shop, StageType.Boss,
         };
         [Tooltip("The round can be ended by hand once this many blocks were placed.")]
         public int minPlacementsToEnd = 3;
@@ -300,13 +303,14 @@ namespace VoidConverter.Data
         {
             new EventData
             {
-                id = "abandoned_camp",
-                title = "Abandoned Camp",
-                description = "You find a deserted camp.\nChoose one.",
+                id = "lucky_shrine",
+                title = "Lucky Shrine",
+                description = "A small shrine glows faintly.\nIts blessing bends luck your way.",
                 choices = new List<EventChoiceData>
                 {
-                    Choice("Take the coins", Effect(EventEffectKind.Gold, 4)),
-                    Choice("Rest by the fire", Effect(EventEffectKind.Heal, 2)),
+                    Choice("Pray for health", TileWeight(CellType.Heal, 30)),
+                    Choice("Pray for fortune", TileWeight(CellType.Gold, 30)),
+                    Choice("Pray for safety", TileWeight(CellType.Trap, -30)),
                 },
             },
             new EventData
@@ -319,17 +323,6 @@ namespace VoidConverter.Data
                     Choice("Sell your blood", Effect(EventEffectKind.Damage, 2), Effect(EventEffectKind.Gold, 8)),
                     Choice("Buy a tonic", Effect(EventEffectKind.Gold, -5), Effect(EventEffectKind.Heal, 4)),
                     Choice("Walk away"),
-                },
-            },
-            new EventData
-            {
-                id = "spring",
-                title = "Clear Spring",
-                description = "Clean water bubbles from the ground.",
-                choices = new List<EventChoiceData>
-                {
-                    Choice("Drink", Effect(EventEffectKind.Heal, 3)),
-                    Choice("Bottle some water", Effect(EventEffectKind.Gold, 2)),
                 },
             },
             new EventData
@@ -392,6 +385,9 @@ namespace VoidConverter.Data
         };
 
         static EventEffectData Effect(EventEffectKind kind, int amount) => new EventEffectData { kind = kind, amount = amount };
+
+        static EventEffectData TileWeight(CellType cell, int percent) =>
+            new EventEffectData { kind = EventEffectKind.TileWeight, amount = percent, cellType = cell };
 
         static EventEffectData GainItem(string itemId) => new EventEffectData { kind = EventEffectKind.GainItem, itemId = itemId };
 
