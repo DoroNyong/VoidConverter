@@ -24,6 +24,11 @@ namespace VoidConverter.Core
         public int Power;
         // Monster cells only: true = a magic monster (beaten by the player's Magic), false = physical (beaten by Attack).
         public bool Magic;
+        // Monster cells that buff a neighbour (the Wisp): how much attack the buffed monster gains while this cell
+        // stands (not fired, not covered), and which cell it is (-1 = none). See Grid.EffectivePower.
+        public int BuffAmount;
+        public int BuffX = -1;
+        public int BuffY = -1;
         // Void cells only.
         public VoidKind Kind;
         // Danger voids only: hit points left.

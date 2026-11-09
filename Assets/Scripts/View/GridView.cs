@@ -72,6 +72,18 @@ namespace VoidConverter.View
             return config.OffsetToCell((Vector2)(world - transform.position));
         }
 
+        static readonly Color BuffedLabelColor = new Color(1f, 0.92f, 0.3f);
+        static readonly Color BuffLinkColor = new Color(1f, 0.92f, 0.3f, 0.9f);
+
+        /// <summary>A thin line between the Wisp and the monster it strengthens.</summary>
+        void AddBuffLink(Vector2 from, Vector2 to)
+        {
+            Vector2 d = to - from;
+            var link = SpriteUtil.AddSquare(transform, "Buff Link", (from + to) * 0.5f, 1f, BuffLinkColor, 4);
+            link.transform.localScale = new Vector3(d.magnitude, 0.06f, 1f);
+            link.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+        }
+
         void Rebuild()
         {
             for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
@@ -111,7 +123,11 @@ namespace VoidConverter.View
                     // covers together, so they are shown on the drag ghost rather than per cell.
                     if (cell.Type == CellType.Monster && !dead)
                     {
-                        TextUtil.AddText(transform, "Power", center, (cell.Magic ? "M" : "A") + grid.EffectivePower(x, y), 64, 0.07f, Color.white, 10);
+                        // A monster a Wisp is strengthening shows its raised power in yellow.
+                        bool buffed = grid.IsBuffed(x, y);
+                        TextUtil.AddText(transform, "Power", center, (cell.Magic ? "M" : "A") + grid.EffectivePower(x, y), 64, 0.07f, buffed ? BuffedLabelColor : Color.white, 10);
+                        // The Wisp is tied to the monster it strengthens by a thin yellow line.
+                        if (cell.BuffAmount > 0 && cell.BuffX >= 0 && grid.IsBuffLinkAlive(x, y)) AddBuffLink(center, config.CellOffset(cell.BuffX, cell.BuffY));
                     }
                     else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !dead)
                     {

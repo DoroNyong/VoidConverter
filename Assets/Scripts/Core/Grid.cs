@@ -41,17 +41,20 @@ namespace VoidConverter.Core
                     var type = layout.Types[x, y];
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
                     bool magic = false;
+                    int buff = 0;
                     // With monster types, a monster cell takes one (by weight) instead of a random power.
                     if (type == CellType.Monster && assigned != null)
                     {
                         var spec = assigned[x, y];
                         power = spec.Power;
                         magic = spec.Magic;
+                        buff = spec.BuffAdjacent;
                     }
                     // Empty cells start out spent, like a cell that was already activated.
-                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power, Magic = magic };
+                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power, Magic = magic, BuffAmount = buff };
                 }
             }
+            ChooseBuffTargets(rng);
 
             VoidPower = rng.Next(settings.VoidPowerMin, settings.VoidPowerMax + 1);
             BuffPower = settings.BuffPower;
@@ -81,6 +84,35 @@ namespace VoidConverter.Core
                 given += quota[i];
             }
             for (; given < n; given++) quota[Array.IndexOf(specs, PickSpec(specs, rng))]++;
+
+            // A kind with a limit per board never gets more than that; the surplus goes to kinds that still have room.
+            // With a minimum as well (below the maximum) the limit is drawn for each board: 1 or 2, say.
+            var limit = new int[specs.Length];
+            for (int i = 0; i < specs.Length; i++)
+            {
+                int max = specs[i].MaxPerBoard, min = specs[i].MinPerBoard;
+                limit[i] = max <= 0 ? int.MaxValue : (min > 0 && min < max ? rng.Next(min, max + 1) : max);
+            }
+            int surplus = 0;
+            for (int i = 0; i < specs.Length; i++)
+            {
+                if (quota[i] > limit[i])
+                {
+                    surplus += quota[i] - limit[i];
+                    quota[i] = limit[i];
+                }
+            }
+            for (; surplus > 0; surplus--)
+            {
+                var room = new List<MonsterSpec>();
+                for (int i = 0; i < specs.Length; i++)
+                {
+                    if (quota[i] < limit[i]) room.Add(specs[i]);
+                }
+                // Every kind is full (only limited kinds are in play): the limit gives way, so no monster cell is left without a kind.
+                if (room.Count == 0) room.AddRange(specs);
+                quota[Array.IndexOf(specs, PickSpec(room.ToArray(), rng))]++;
+            }
 
             var kinds = new List<int>();
             for (int i = 0; i < specs.Length; i++) for (int k = 0; k < quota[i]; k++) kinds.Add(i);
@@ -155,6 +187,68 @@ namespace VoidConverter.Core
                 if (roll < 0f) return s;
             }
             return specs[specs.Length - 1];
+        }
+
+        // Each buffing monster (the Wisp) picks one monster next to it to strengthen, one that is not a buffer itself.
+        // Cells that share an edge come first; only with none of those does it look at the cells touching its corners.
+        // With no monster around it at all it buffs nobody.
+        void ChooseBuffTargets(Random rng)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var cell = cells[x, y];
+                    if (cell.Type != CellType.Monster || cell.BuffAmount <= 0) continue;
+                    PickBuffTarget(x, y, rng);
+                }
+            }
+        }
+
+        // Picks a new target for the buffing monster at (x, y) among the monsters next to it that still stand
+        // (not fired, not covered). Sets the target to none (-1) if there is no such monster.
+        void PickBuffTarget(int x, int y, Random rng)
+        {
+            var dx = new[] { 1, -1, 0, 0, 1, 1, -1, -1 };
+            var dy = new[] { 0, 0, 1, -1, 1, -1, 1, -1 };
+            var cell = cells[x, y];
+            var options = new List<(int x, int y)>();
+            for (int ring = 0; ring < 2 && options.Count == 0; ring++)
+            {
+                for (int d = ring * 4; d < ring * 4 + 4; d++)
+                {
+                    int nx = x + dx[d], ny = y + dy[d];
+                    if (!InBounds(nx, ny)) continue;
+                    var n = cells[nx, ny];
+                    if (n.Type == CellType.Monster && n.BuffAmount <= 0 && !n.Used && !n.Covered) options.Add((nx, ny));
+                }
+            }
+            if (options.Count == 0)
+            {
+                cell.BuffX = -1;
+                cell.BuffY = -1;
+                return;
+            }
+            var pick = options[rng.Next(options.Count)];
+            cell.BuffX = pick.x;
+            cell.BuffY = pick.y;
+        }
+
+        // A standing buffing monster whose target was fired or covered picks a new one among its neighbours.
+        // Called after every placement.
+        void RetargetBuffs(Random rng)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var w = cells[x, y];
+                    if (w.Type != CellType.Monster || w.BuffAmount <= 0 || w.Used || w.Covered || w.BuffX < 0) continue;
+                    var target = cells[w.BuffX, w.BuffY];
+                    if (!target.Used && !target.Covered) continue;
+                    PickBuffTarget(x, y, rng);
+                }
+            }
         }
 
         /// <summary>How much stronger a Buff void makes each monster next to it.</summary>
@@ -261,8 +355,36 @@ namespace VoidConverter.Core
                     power += BuffPower;
                 }
             }
+            // A buffing monster (the Wisp) strengthens the one monster it picked, for as long as it stands:
+            // not fired, not covered by a block (a covered cell is lost) and not under the block about to land.
+            for (int wx = 0; wx < Width; wx++)
+            {
+                for (int wy = 0; wy < Height; wy++)
+                {
+                    var w = cells[wx, wy];
+                    if (w.BuffAmount <= 0 || w.BuffX != x || w.BuffY != y) continue;
+                    if (w.Used || w.Covered) continue;
+                    if (covered != null && covered.Contains(wx + wy * Width)) continue;
+                    power += w.BuffAmount;
+                }
+            }
             return power;
         }
+
+        /// <summary>
+        /// True while the buffing monster at (x, y) still has a monster to strengthen: it stands, and the monster it
+        /// picked has not fired and has not been covered by a block (a covered monster is lost).
+        /// </summary>
+        public bool IsBuffLinkAlive(int x, int y)
+        {
+            var w = cells[x, y];
+            if (w.BuffAmount <= 0 || w.BuffX < 0 || w.Used || w.Covered) return false;
+            var target = cells[w.BuffX, w.BuffY];
+            return !target.Used && !target.Covered;
+        }
+
+        /// <summary>True if a standing Wisp is strengthening the monster at (x, y) right now.</summary>
+        public bool IsBuffed(int x, int y) => EffectivePower(x, y) > cells[x, y].Power;
 
         HashSet<int> CoveredSet(Int2[] blockCells, int originX, int originY)
         {
@@ -351,6 +473,10 @@ namespace VoidConverter.Core
                 monsters[pick].Power = power;
                 // The boss's strong monsters hit the attack, never the (weaker) magic.
                 monsters[pick].Magic = false;
+                // A strong monster is no Wisp any more.
+                monsters[pick].BuffAmount = 0;
+                monsters[pick].BuffX = -1;
+                monsters[pick].BuffY = -1;
                 monsters.RemoveAt(pick);
             }
         }
@@ -450,6 +576,8 @@ namespace VoidConverter.Core
         public List<ActivatedCell> CandidatesUnder(Int2[] blockCells, int originX, int originY)
         {
             var list = new List<ActivatedCell>();
+            // Buffs from cells this block covers do not count: a covered cell that does not fire is lost.
+            var covered = CoveredSet(blockCells, originX, originY);
             foreach (var c in blockCells)
             {
                 int x = originX + c.X;
@@ -457,7 +585,7 @@ namespace VoidConverter.Core
                 if (!InBounds(x, y)) continue;
                 var cell = cells[x, y];
                 if (cell.Used || cell.Covered || cell.Type == CellType.Empty) continue;
-                list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y), Magic = cell.Magic, Kind = cell.Kind, Contaminated = cell.Contaminated });
+                list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y, covered), Magic = cell.Magic, Kind = cell.Kind, Contaminated = cell.Contaminated });
             }
             return list;
         }
@@ -493,12 +621,18 @@ namespace VoidConverter.Core
                 int cx = originX + c.X, cy = originY + c.Y;
                 cells[cx, cy].Covered = true;
             }
-            if (candidates.Count == 0) return result;
+            if (candidates.Count == 0)
+            {
+                RetargetBuffs(rng);
+                return result;
+            }
 
             // Equal chances unless the player's tile weights say otherwise (PickChance).
             var pick = candidates[PickChance.Pick(candidates, player, rng)];
             cells[pick.X, pick.Y].Used = true;
             result.Activated.Add(pick);
+            // A Wisp whose monster was just covered or fired looks for a new one.
+            RetargetBuffs(rng);
             return result;
         }
 
@@ -591,6 +725,12 @@ namespace VoidConverter.Core
         public bool Magic;
         public int Power;
         public float Weight;
+        // At most this many of the kind per board (0 = no limit). With MinPerBoard above 0 (and below the maximum)
+        // each board draws its own limit between the two, so it varies from board to board.
+        public int MaxPerBoard;
+        public int MinPerBoard;
+        // Attack this monster gives one neighbouring monster while it stands (0 = none).
+        public int BuffAdjacent;
     }
 
     public struct ActivatedCell

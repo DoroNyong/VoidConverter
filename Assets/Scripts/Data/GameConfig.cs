@@ -34,8 +34,14 @@ namespace VoidConverter.Data
         public int power = 3;
         [Tooltip("How often it shows up among the monsters that may appear.")]
         public float weight = 1f;
-        [Tooltip("The first stage (1-based position in the run) in which it can appear.")]
+        [Tooltip("The first stage (1-based position in the run, events and shop count too) in which it can appear.")]
         public int firstStage = 1;
+        [Tooltip("At most this many of it per board (0 = no limit). The rest of its share goes to the other types.")]
+        public int maxPerBoard = 0;
+        [Tooltip("With a value above 0 (and below Max Per Board), each board draws how many it gets between this and Max Per Board, e.g. 1 and 2 = one or two. 0 = always up to Max Per Board.")]
+        public int minPerBoard = 0;
+        [Tooltip("Attack it gives one neighbouring monster (a cell sharing an edge, else one touching a corner) while it stands (0 = none). Defeat it first to remove the buff.")]
+        public int buffAdjacent = 0;
     }
 
     /// <summary>One shelf slot as edited in the inspector: an item (by id) or a heal, with its price.</summary>
@@ -194,10 +200,10 @@ namespace VoidConverter.Data
         {
             new MonsterTypeData { name = "Slime", magic = true, power = 1, weight = 1f, firstStage = 1 },
             new MonsterTypeData { name = "Beast", magic = false, power = 3, weight = 1f, firstStage = 1 },
-            new MonsterTypeData { name = "Wisp", magic = true, power = 2, weight = 1f, firstStage = 3 },
-            new MonsterTypeData { name = "Brute", magic = false, power = 4, weight = 1f, firstStage = 3 },
-            new MonsterTypeData { name = "Mage", magic = true, power = 3, weight = 1f, firstStage = 5 },
-            new MonsterTypeData { name = "Ogre", magic = false, power = 5, weight = 1f, firstStage = 5 },
+            // The first cycle (stages 1-2, 4-5, 7-8 are fights): Slime and Beast first, the Wisp joins in stage 4,
+            // the Brute in stage 7. Both are hard to beat, so a board holds one or two Wisps and three Brutes at most.
+            new MonsterTypeData { name = "Wisp", magic = true, power = 2, weight = 1f, firstStage = 4, minPerBoard = 1, maxPerBoard = 2, buffAdjacent = 1 },
+            new MonsterTypeData { name = "Brute", magic = false, power = 4, weight = 1f, firstStage = 7, maxPerBoard = 3 },
         };
 
         [Header("Void")]
@@ -434,7 +440,7 @@ namespace VoidConverter.Data
                 foreach (var t in monsterTypes)
                 {
                     if (stage > 0 && t.firstStage > stage) continue;
-                    specs.Add(new MonsterSpec { Magic = t.magic, Power = t.power, Weight = t.weight });
+                    specs.Add(new MonsterSpec { Magic = t.magic, Power = t.power, Weight = t.weight, MaxPerBoard = t.maxPerBoard, MinPerBoard = t.minPerBoard, BuffAdjacent = t.buffAdjacent });
                 }
             }
             return specs.Count > 0 ? specs.ToArray() : null;

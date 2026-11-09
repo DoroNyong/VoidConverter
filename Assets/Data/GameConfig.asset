@@ -45,31 +45,30 @@ MonoBehaviour:
     power: 1
     weight: 1
     firstStage: 1
+    maxPerBoard: 0
+    buffAdjacent: 0
   - name: Beast
     magic: 0
     power: 3
     weight: 1
     firstStage: 1
+    maxPerBoard: 0
+    buffAdjacent: 0
   - name: Wisp
     magic: 1
     power: 2
     weight: 1
-    firstStage: 3
+    firstStage: 4
+    maxPerBoard: 2
+    minPerBoard: 1
+    buffAdjacent: 1
   - name: Brute
     magic: 0
     power: 4
     weight: 1
-    firstStage: 3
-  - name: Mage
-    magic: 1
-    power: 3
-    weight: 1
-    firstStage: 5
-  - name: Ogre
-    magic: 0
-    power: 5
-    weight: 1
-    firstStage: 5
+    firstStage: 7
+    maxPerBoard: 3
+    buffAdjacent: 0
   maxCorruption: 10
   voidPowerMin: 2
   voidPowerMax: 4
