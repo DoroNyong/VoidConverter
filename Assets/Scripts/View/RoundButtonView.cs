@@ -66,14 +66,19 @@ namespace VoidConverter.View
 
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
             bool inside = Mathf.Abs(world.x - center.x) <= Size.x * 0.5f && Mathf.Abs(world.y - center.y) <= Size.y * 0.5f;
-            if (inside) controller.PressMainButton();
+            if (inside && !HiddenByScreen) controller.PressMainButton();
             bool onReroll = Mathf.Abs(world.x - rerollCenter.x) <= Size.x * 0.5f && Mathf.Abs(world.y - rerollCenter.y) <= Size.y * 0.5f;
             if (onReroll) controller.RerollHand();
         }
 
+        // The title and the clear / defeat screens (FlowScreenView) have their own big button.
+        bool HiddenByScreen => controller.OnTitle || controller.Phase == RunPhase.Cleared || controller.Phase == RunPhase.Defeated;
+
         void Refresh()
         {
-            bool showReroll = controller.PickOneRule && controller.Phase == RunPhase.Playing;
+            background.gameObject.SetActive(!HiddenByScreen);
+            label.gameObject.SetActive(!HiddenByScreen);
+            bool showReroll = !HiddenByScreen && controller.PickOneRule && controller.Phase == RunPhase.Playing;
             rerollBackground.gameObject.SetActive(showReroll);
             rerollLabel.gameObject.SetActive(showReroll);
             if (showReroll)

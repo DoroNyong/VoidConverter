@@ -79,26 +79,13 @@ namespace VoidConverter.View
             // The shop draws its own screen; the other non-playing phases use this banner.
             var phase = controller.Phase;
             // (EventView draws the event screen; the banner only covers an Event stage with no events configured.)
-            bool showBanner = phase == RunPhase.Cleared || phase == RunPhase.Defeated ||
-                              (phase == RunPhase.Event && controller.CurrentEvent == null);
+            // (The clear and defeat screens are drawn by EndScreenView.)
+            bool showBanner = phase == RunPhase.Event && controller.CurrentEvent == null;
             banner.SetActive(showBanner);
             if (!showBanner) return;
 
-            if (phase == RunPhase.Event)
-            {
-                bannerText.text = "EVENT\n(no events)";
-                bannerText.color = MessageColor;
-            }
-            else if (phase == RunPhase.Cleared)
-            {
-                bannerText.text = $"CLEARED!\nGold {p.Gold}";
-                bannerText.color = ClearColor;
-            }
-            else
-            {
-                bannerText.text = $"DEFEATED\nStage {controller.Stage}/{controller.StageCount}\nGold {p.Gold}";
-                bannerText.color = DeadColor;
-            }
+            bannerText.text = "EVENT\n(no events)";
+            bannerText.color = MessageColor;
         }
     }
 }

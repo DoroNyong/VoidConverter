@@ -127,11 +127,38 @@ namespace VoidConverter.Game
             NewRun();
         }
 
+        /// <summary>True while the title screen waits for the player to start. Every player action is ignored until StartGame.</summary>
+        public bool OnTitle { get; private set; }
+
+        /// <summary>Shows the title screen (a view calls this once at the start; headless callers such as the balance sim never do).</summary>
+        public void ShowTitle()
+        {
+            OnTitle = true;
+            InputLocked = true;
+            Changed?.Invoke();
+        }
+
+        /// <summary>Leaves the title screen and starts playing the first stage.</summary>
+        public void StartGame()
+        {
+            if (!OnTitle) return;
+            Transition(() =>
+            {
+                OnTitle = false;
+                InputLocked = false;
+            }, 0f);
+        }
+
         void Update()
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
+            if (OnTitle)
+            {
+                if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) StartGame();
+                return;
+            }
             if (InputLocked) return;
 
             // Debug: restart the whole run.
