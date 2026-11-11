@@ -20,6 +20,8 @@ namespace VoidConverter.View
         static readonly Color GhostValidColor = new Color(0.7f, 0.95f, 1f, 0.7f);
         static readonly Color GhostInvalidColor = new Color(1f, 0.3f, 0.3f, 0.55f);
         const int MaxBlockCells = 4;
+        // Above every picture on the board (their orders run 1 to 9), below the cells' numbers (11).
+        const int GhostOrder = 10;
         // Gap between the grid's right edge and the odds panel. GridView reserves the same room in the camera.
         public const float SidePanelGap = 0.45f;
         public const float SidePanelWidth = 2.8f;
@@ -34,6 +36,8 @@ namespace VoidConverter.View
         Transform ghostRoot;
         SpriteRenderer[] ghostCells;
         TextMesh ghostInfo;
+        // The chance badges and the walking border over the cells that could fire (Pick-One rule).
+        PreviewMarksView marks;
 
         void Start()
         {
@@ -47,12 +51,14 @@ namespace VoidConverter.View
             ghostCells = new SpriteRenderer[MaxBlockCells];
             for (int i = 0; i < MaxBlockCells; i++)
             {
-                ghostCells[i] = SpriteUtil.AddDiamond(ghostRoot, "Ghost Cell", Vector2.zero, config.TileWidth * 0.92f, config.cellSize * 0.92f, GhostValidColor, 5);
+                ghostCells[i] = SpriteUtil.AddDiamond(ghostRoot, "Ghost Cell", Vector2.zero, config.TileWidth * 0.92f, config.cellSize * 0.92f, GhostValidColor, GhostOrder);
             }
             ghostInfo = TextUtil.AddText(ghostRoot, "Ghost Info", Vector2.zero, "", 64, 0.036f, Color.white, 20);
             // Left-aligned so the lines read as a list and grow rightwards from the grid edge.
             ghostInfo.anchor = TextAnchor.MiddleLeft;
             ghostInfo.alignment = TextAlignment.Left;
+            marks = new GameObject("Preview Marks").AddComponent<PreviewMarksView>();
+            marks.Init(config);
             HideGhost();
 
             controller.Changed += Rebuild;
@@ -63,6 +69,7 @@ namespace VoidConverter.View
         {
             if (controller != null) controller.Changed -= Rebuild;
             if (ghostRoot != null) Destroy(ghostRoot.gameObject);
+            if (marks != null) Destroy(marks.gameObject);
         }
 
         void Update()
@@ -209,6 +216,7 @@ namespace VoidConverter.View
             }
             else if (valid)
             {
+                marks.Hide();
                 // The size bonus of the held block counts in the win chances below; HideGhost puts it back.
                 controller.Player.BlockBonus = controller.AttackBonusFor(cells.Length);
                 int fixedPower = controller.Grid.MonsterPowerUnder(cells, origin.X, origin.Y);
@@ -244,6 +252,7 @@ namespace VoidConverter.View
             }
             else
             {
+                marks.Hide();
                 ghostInfo.gameObject.SetActive(false);
             }
         }
@@ -253,6 +262,17 @@ namespace VoidConverter.View
         {
             var candidates = controller.Grid.CandidatesUnder(cells, origin.X, origin.Y);
             var odds = PickOdds.Analyze(controller.Player, candidates, config.goldCellReward, config.healCellAmount, config.goldPerMonsterPower, config.trapDamage);
+
+            // The chance of each cell that could fire goes on the cell itself, and a bright border walks over them.
+            var chances = PickChance.Probabilities(candidates, controller.Player);
+            var cellPositions = new List<Vector2>(candidates.Count);
+            var cellChances = new List<float>(candidates.Count);
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                cellPositions.Add(gridView.CellToWorld(candidates[i].X, candidates[i].Y));
+                cellChances.Add(chances[i]);
+            }
+            marks.Show(cellPositions, cellChances);
 
             if (odds.Candidates == 0)
             {
@@ -325,6 +345,7 @@ namespace VoidConverter.View
         {
             foreach (var cell in ghostCells) cell.gameObject.SetActive(false);
             ghostInfo.gameObject.SetActive(false);
+            if (marks != null) marks.Hide();
         }
 
         /// <summary>Screen offset of a block cell (x, y) in the hand, with tiles <paramref name="height"/> high.</summary>

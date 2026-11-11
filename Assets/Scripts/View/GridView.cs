@@ -28,6 +28,14 @@ namespace VoidConverter.View
         // A cell a block covered cannot take another block: it gets a red frame.
         static readonly Color BlockedFrameColor = new Color(0.95f, 0.2f, 0.2f);
         const float BlockedFrameThickness = 0.08f;
+        // The cell that fired in an earlier placement keeps a bright frame (not red, which means "covered, spent").
+        static readonly Color FiredFrameColor = new Color(1f, 1f, 1f, 1f);
+        // A border that flares out from the cell that just fired and fades.
+        const float PulseSeconds = 0.7f;
+        const float PulseGrowth = 0.6f;
+        // How far (of the tile height) a cell's number sits below the middle when the cell has a picture.
+        const float IconLabelDrop = 0.28f;
+        const float IconLabelScale = 0.8f;
 
         const float CameraMargin = 0.8f;
         const float HudSpace = 2.1f;
@@ -42,19 +50,50 @@ namespace VoidConverter.View
             controller = FindFirstObjectByType<GameController>();
             config = controller.Config;
             FitCamera();
+            // Not a child of the board: Rebuild clears the board's children, and the flare outlives a rebuild.
+            pulse = SpriteUtil.AddDiamondOutline(null, "Fire Pulse", Vector2.zero, config.TileWidth, config.cellSize, Color.white, 15);
+            pulse.enabled = false;
             controller.Changed += Rebuild;
+            controller.Fired += OnFired;
             Rebuild();
+        }
+
+        SpriteRenderer pulse;
+        float pulseStart = -100f;
+
+        void OnFired(FeedbackEvent e)
+        {
+            pulse.transform.position = CellToWorld(e.X, e.Y);
+            pulseStart = Time.unscaledTime;
         }
 
         void Update()
         {
+            float t = (Time.unscaledTime - pulseStart) / PulseSeconds;
+            if (t >= 1f || t < 0f)
+            {
+                pulse.enabled = false;
+            }
+            else
+            {
+                pulse.enabled = true;
+                float grow = 1f + PulseGrowth * t;
+                pulse.transform.localScale = new Vector3(config.TileWidth * grow, config.cellSize * grow, 1f);
+                pulse.color = new Color(1f, 1f, 1f, 1f - t);
+            }
+
             // The window can be resized at any time; keep the whole board and hand in view.
             if (Camera.main != null && !Mathf.Approximately(Camera.main.aspect, fittedAspect)) FitCamera();
         }
 
         void OnDestroy()
         {
-            if (controller != null) controller.Changed -= Rebuild;
+            if (controller != null)
+            {
+                controller.Changed -= Rebuild;
+                controller.Fired -= OnFired;
+            }
+            if (pulse != null) Destroy(pulse.gameObject);
         }
 
         // The board is a diamond (see GameConfig.CellOffset): this is the only place that turns cells into screen
@@ -103,10 +142,37 @@ namespace VoidConverter.View
                     color.a = 1f;
                     Vector2 center = config.CellOffset(x, y);
                     // A cell a block covered gets a red frame: a red diamond with the cell's own diamond inset on top.
-                    bool blocked = cell.Covered && grid.BlockCovered;
-                    if (blocked) SpriteUtil.AddDiamond(transform, $"Blocked Frame {x},{y}", center, tileW, tileH, BlockedFrameColor, -1);
-                    float inset = blocked ? 1f - BlockedFrameThickness * 2f : 1f;
-                    SpriteUtil.AddDiamond(transform, $"Cell {x},{y}", center, tileW * inset, tileH * inset, color, 0);
+                    // The cell that fired gets a bright frame instead, so what fired and what was only covered read apart.
+                    bool fired = cell.Covered && cell.Used;
+                    bool blocked = cell.Covered && grid.BlockCovered && !fired;
+                    if (fired) SpriteUtil.AddDiamond(transform, $"Fired Frame {x},{y}", center, tileW, tileH, FiredFrameColor, -1);
+                    else if (blocked) SpriteUtil.AddDiamond(transform, $"Blocked Frame {x},{y}", center, tileW, tileH, BlockedFrameColor, -1);
+                    float inset = fired || blocked ? 1f - BlockedFrameThickness * 2f : 1f;
+                    var cellRenderer = SpriteUtil.AddDiamond(transform, $"Cell {x},{y}", center, tileW * inset, tileH * inset, color, 0);
+                    // With a picture for this kind of cell, draw it (dimmed when dead) instead of the colored diamond.
+                    var art = TileArt.For(cell);
+                    if (art != null)
+                    {
+                        TileArt.Apply(cellRenderer, art, tileW * inset, tileH * inset);
+                        cellRenderer.color = dead ? new Color(UsedDim, UsedDim, UsedDim, 1f) : Color.white;
+                    }
+
+                    // A small picture on the colored tile: the monster, coin, heart or spikes. The cell's number moves
+                    // down to the lower part of the tile so it does not sit on the picture.
+                    Vector2 labelAt = center;
+                    float labelScale = 1f;
+                    if (art == null && TileArt.TryIcon(cell, tileW, tileH, out var icon, out float iconWidth, out float iconY))
+                    {
+                        // A tile further down the screen is in front: its picture is drawn over the ones behind it.
+                        int order = Mathf.Clamp(1 + (grid.Width + grid.Height - 2) - (x + y), 1, 9);
+                        var iconRenderer = SpriteUtil.AddSquare(transform, $"Icon {x},{y}", center + new Vector2(0f, iconY), 1f,
+                            dead ? new Color(UsedDim, UsedDim, UsedDim, 1f) : Color.white, order);
+                        Vector2 size = icon.bounds.size;
+                        iconRenderer.sprite = icon;
+                        iconRenderer.transform.localScale = new Vector3(iconWidth / size.x, iconWidth / size.x, 1f);
+                        labelAt = center + new Vector2(0f, -tileH * IconLabelDrop);
+                        labelScale = IconLabelScale;
+                    }
 
                     if (cell.Type == CellType.Void && !dead && cell.Kind != VoidKind.Normal)
                     {
@@ -125,35 +191,35 @@ namespace VoidConverter.View
                     {
                         // A monster a Wisp is strengthening shows its raised power in yellow.
                         bool buffed = grid.IsBuffed(x, y);
-                        TextUtil.AddText(transform, "Power", center, (cell.Magic ? "M" : "A") + grid.EffectivePower(x, y), 64, 0.07f, buffed ? BuffedLabelColor : Color.white, 10);
+                        TextUtil.AddText(transform, "Power", labelAt, (cell.Magic ? "M" : "A") + grid.EffectivePower(x, y), 64, 0.07f * labelScale, buffed ? BuffedLabelColor : Color.white, 11);
                         // The Wisp is tied to the monster it strengthens by a thin yellow line.
                         if (cell.BuffAmount > 0 && cell.BuffX >= 0 && grid.IsBuffLinkAlive(x, y)) AddBuffLink(center, config.CellOffset(cell.BuffX, cell.BuffY));
                     }
                     else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Danger && !dead)
                     {
-                        TextUtil.AddText(transform, "Danger HP", center, cell.Hp.ToString(), 64, 0.07f, Color.white, 10);
+                        TextUtil.AddText(transform, "Danger HP", center, cell.Hp.ToString(), 64, 0.07f, Color.white, 11);
                     }
                     else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Buff && !dead)
                     {
-                        TextUtil.AddText(transform, "Buff Power", center, "+" + grid.BuffPower, 64, 0.06f, Color.black, 10);
+                        TextUtil.AddText(transform, "Buff Power", center, "+" + grid.BuffPower, 64, 0.06f, Color.black, 11);
                     }
                     // Reward cells say what they give. Locked cells show nothing.
                     else if (cell.Type == CellType.Trap && !dead)
                     {
-                        TextUtil.AddText(transform, "Trap Damage", center, "-" + config.trapDamage, 64, 0.07f, Color.white, 10);
+                        TextUtil.AddText(transform, "Trap Damage", labelAt, "-" + config.trapDamage, 64, 0.07f * labelScale, Color.white, 11);
                     }
                     else if (cell.Type == CellType.Gold && !dead)
                     {
-                        TextUtil.AddText(transform, "Gold Reward", center, "$" + config.goldCellReward, 64, 0.06f, RewardLabelColor, 10);
+                        TextUtil.AddText(transform, "Gold Reward", labelAt, "$" + config.goldCellReward, 64, 0.06f * labelScale, RewardLabelColor, 11);
                     }
                     else if (cell.Type == CellType.Heal && !dead)
                     {
-                        TextUtil.AddText(transform, "Heal Amount", center, "+" + config.healCellAmount + " HP", 64, 0.045f, RewardLabelColor, 10);
+                        TextUtil.AddText(transform, "Heal Amount", labelAt, "+" + config.healCellAmount + " HP", 64, 0.045f * labelScale, RewardLabelColor, 11);
                     }
                     // Every void cell shows, faintly, the same power: the monster it would spawn. It re-rolls after every placement.
                     else if (cell.Type == CellType.Void && cell.Kind == VoidKind.Normal && !dead)
                     {
-                        TextUtil.AddText(transform, "Void Power", center, grid.VoidPower.ToString(), 64, 0.07f, VoidPowerColor, 10);
+                        TextUtil.AddText(transform, "Void Power", center, grid.VoidPower.ToString(), 64, 0.07f, VoidPowerColor, 11);
                     }
                 }
             }

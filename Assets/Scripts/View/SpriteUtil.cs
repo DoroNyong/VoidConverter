@@ -87,6 +87,43 @@ namespace VoidConverter.View
             }
         }
 
+        static Sprite diamondOutline;
+
+        /// <summary>A 1x1 world-unit thin white diamond outline (the border of <see cref="Diamond"/>), tinted via SpriteRenderer.color.</summary>
+        public static Sprite DiamondOutline
+        {
+            get
+            {
+                if (diamondOutline == null)
+                {
+                    const int size = 128;
+                    var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+                    float c = (size - 1) * 0.5f;
+                    for (int y = 0; y < size; y++)
+                    {
+                        for (int x = 0; x < size; x++)
+                        {
+                            float d = (Mathf.Abs(x - c) + Mathf.Abs(y - c)) / c;
+                            // A band just inside the edge, soft on both sides.
+                            float a = Mathf.Clamp01((0.075f - Mathf.Abs(d - 0.9f)) / 0.03f);
+                            tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                        }
+                    }
+                    tex.Apply();
+                    diamondOutline = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+                }
+                return diamondOutline;
+            }
+        }
+
+        /// <summary>A diamond outline that is <paramref name="width"/> wide and <paramref name="height"/> high.</summary>
+        public static SpriteRenderer AddDiamondOutline(Transform parent, string name, Vector2 localPos, float width, float height, Color color, int order)
+        {
+            var sr = AddDiamond(parent, name, localPos, width, height, color, order);
+            sr.sprite = DiamondOutline;
+            return sr;
+        }
+
         /// <summary>A diamond that is <paramref name="width"/> wide and <paramref name="height"/> high.</summary>
         public static SpriteRenderer AddDiamond(Transform parent, string name, Vector2 localPos, float width, float height, Color color, int order)
         {
