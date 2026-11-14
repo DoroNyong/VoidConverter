@@ -16,6 +16,7 @@ MonoBehaviour:
   gridHeight: 5
   cellSize: 1
   cellGap: 0.06
+  tileAspect: 1.7
   voidCount: 0
   monsterMin: 10
   monsterCount: 12
@@ -39,6 +40,23 @@ MonoBehaviour:
   playerMaxHp: 6
   playerAttack: 2
   playerMagic: 1
+  characters:
+  - displayName: Warrior
+    description: 'Strong against physical.
+
+      Sturdy.'
+    maxHp: 6
+    attack: 2
+    magic: 1
+    color: {r: 0.95, g: 0.55, b: 0.3, a: 1}
+  - displayName: Mage
+    description: 'Strong against magic.
+
+      Fragile.'
+    maxHp: 5
+    attack: 1
+    magic: 2
+    color: {r: 0.55, g: 0.6, b: 1, a: 1}
   monsterTypes:
   - name: Slime
     magic: 1
@@ -46,6 +64,7 @@ MonoBehaviour:
     weight: 1
     firstStage: 1
     maxPerBoard: 0
+    minPerBoard: 0
     buffAdjacent: 0
   - name: Beast
     magic: 0
@@ -53,6 +72,7 @@ MonoBehaviour:
     weight: 1
     firstStage: 1
     maxPerBoard: 0
+    minPerBoard: 0
     buffAdjacent: 0
   - name: Wisp
     magic: 1
@@ -68,6 +88,7 @@ MonoBehaviour:
     weight: 1
     firstStage: 7
     maxPerBoard: 3
+    minPerBoard: 0
     buffAdjacent: 0
   maxCorruption: 10
   voidPowerMin: 2
@@ -100,6 +121,12 @@ MonoBehaviour:
   bossMonsterGrowth: 0
   bossStrongMonsterCount: 3
   bossStrongMonsterPower: 5
+  bossRounds: 2
+  bossZoneEnabled: 1
+  bossZoneDamage: 4
+  bossZoneCenterKills: 1
+  bossZoneStartX: -1
+  bossZoneStartY: -1
   fadeSeconds: 0.3
   fadeDelaySeconds: 0.5
   items:
@@ -118,30 +145,32 @@ MonoBehaviour:
     attackBonus: 0
     maxHpBonus: 0
     magicBonus: 1
+  maxTileChance: 0.75
   events:
   - id: lucky_shrine
     title: Lucky Shrine
     description: 'A small shrine glows faintly.
 
-      Its blessing bends luck your way.'
+      Its blessing bends luck your
+      way.'
     choices:
     - label: Pray for health
       effects:
       - kind: 8
         amount: 30
-        itemId:
+        itemId: 
         cellType: 2
     - label: Pray for fortune
       effects:
       - kind: 8
         amount: 30
-        itemId:
+        itemId: 
         cellType: 1
     - label: Pray for safety
       effects:
       - kind: 8
         amount: -30
-        itemId:
+        itemId: 
         cellType: 4
   - id: shady_peddler
     title: Shady Peddler
@@ -154,17 +183,21 @@ MonoBehaviour:
       - kind: 2
         amount: 2
         itemId: 
+        cellType: 0
       - kind: 0
         amount: 8
         itemId: 
+        cellType: 0
     - label: Buy a tonic
       effects:
       - kind: 0
         amount: -5
         itemId: 
+        cellType: 0
       - kind: 1
         amount: 4
         itemId: 
+        cellType: 0
     - label: Walk away
       effects: []
   - id: wandering_trader
@@ -178,9 +211,11 @@ MonoBehaviour:
       - kind: 0
         amount: -12
         itemId: 
+        cellType: 0
       - kind: 5
         amount: 0
         itemId: life_charm
+        cellType: 0
     - label: Walk away
       effects: []
   - id: old_chest
@@ -194,9 +229,11 @@ MonoBehaviour:
       - kind: 2
         amount: 3
         itemId: 
+        cellType: 0
       - kind: 5
         amount: 0
         itemId: power_ring
+        cellType: 0
     - label: Leave it
       effects: []
   - id: cursed_altar
@@ -211,9 +248,11 @@ MonoBehaviour:
       - kind: 4
         amount: 1
         itemId: 
+        cellType: 0
       - kind: 3
         amount: 3
         itemId: 
+        cellType: 0
     - label: Leave
       effects: []
   - id: whetstone_rune
@@ -226,13 +265,13 @@ MonoBehaviour:
       effects:
       - kind: 6
         amount: 1
-        itemId:
+        itemId: 
         cellType: 0
     - label: Carve the rune
       effects:
       - kind: 7
         amount: 1
-        itemId:
+        itemId: 
         cellType: 0
     - label: Walk away
       effects: []
@@ -246,21 +285,21 @@ MonoBehaviour:
       effects:
       - kind: 6
         amount: 2
-        itemId:
+        itemId: 
         cellType: 0
       - kind: 7
         amount: -1
-        itemId:
+        itemId: 
         cellType: 0
     - label: Kneel at the flame
       effects:
       - kind: 7
         amount: 2
-        itemId:
+        itemId: 
         cellType: 0
       - kind: 6
         amount: -1
-        itemId:
+        itemId: 
         cellType: 0
     - label: Leave
       effects: []

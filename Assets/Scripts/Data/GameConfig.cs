@@ -23,6 +23,23 @@ namespace VoidConverter.Data
         public ItemDefinition ToDefinition() => new ItemDefinition(id, displayName, attackBonus, maxHpBonus, magicBonus);
     }
 
+    /// <summary>One playable character as edited in the inspector (the title screen's character select shows these).</summary>
+    [Serializable]
+    public class CharacterData
+    {
+        [Tooltip("Shown on the select screen. ASCII only for now.")]
+        public string displayName = "Warrior";
+        [Tooltip("One or two short lines under the name. Use a line break for two lines. ASCII only for now.")]
+        [TextArea] public string description = "";
+        public int maxHp = 6;
+        [Tooltip("Attack against physical monsters (one fixed number).")]
+        public int attack = 2;
+        [Tooltip("Magic attack against magic monsters.")]
+        public int magic = 1;
+        [Tooltip("Placeholder look on the select card until a picture exists.")]
+        public Color color = new Color(0.9f, 0.5f, 0.3f);
+    }
+
     /// <summary>One kind of monster: beaten when the player's Attack (physical) or Magic is at least its power.</summary>
     [Serializable]
     public class MonsterTypeData
@@ -193,6 +210,14 @@ namespace VoidConverter.Data
 
         [Tooltip("The player's Magic attack: the number that must reach a magic monster's power. Items add to it.")]
         public int playerMagic = 1;
+
+        [Header("Characters (title screen select)")]
+        [Tooltip("The characters offered before a run. Their stats replace the Player block above (kept as the fallback when this list is empty). The numbers are placeholders.")]
+        public List<CharacterData> characters = new List<CharacterData>
+        {
+            new CharacterData { displayName = "Warrior", description = "Strong against physical.\nSturdy.", maxHp = 6, attack = 2, magic = 1, color = new Color(0.95f, 0.55f, 0.3f) },
+            new CharacterData { displayName = "Mage", description = "Strong against magic.\nFragile.", maxHp = 5, attack = 1, magic = 2, color = new Color(0.55f, 0.6f, 1f) },
+        };
 
         [Header("Monster Types (Pick-One rule)")]
         [Tooltip("Monster cells take one of these types (by weight) among those whose First Stage has been reached. Empty = random physical power between Monster Power Min and Max.")]
@@ -536,6 +561,14 @@ namespace VoidConverter.Data
 
         public PlayerStats CreatePlayer() =>
             new PlayerStats(playerMaxHp, playerAttack, playerAttack, maxCorruption, playerMagic) { MaxTileChance = maxTileChance };
+
+        /// <summary>The player of the character at this index of <see cref="characters"/> (the plain Player block if there is none).</summary>
+        public PlayerStats CreatePlayer(int characterIndex)
+        {
+            if (characters == null || characterIndex < 0 || characterIndex >= characters.Count) return CreatePlayer();
+            var c = characters[characterIndex];
+            return new PlayerStats(c.maxHp, c.attack, c.attack, maxCorruption, c.magic) { MaxTileChance = maxTileChance };
+        }
 
         /// <summary>The attack bonus of a block with this many cells.</summary>
         public int AttackBonusFor(int cellCount)

@@ -136,25 +136,136 @@ namespace VoidConverter.Game
             NewRun();
         }
 
-        /// <summary>True while the title screen waits for the player to start. Every player action is ignored until StartGame.</summary>
+        /// <summary>
+        /// True while the screens before a run are up (title, tutorial, character select). Every player action is
+        /// ignored until StartGame.
+        /// </summary>
         public bool OnTitle { get; private set; }
+
+        public enum TitleStep { Title, Tutorial, CharacterSelect }
+
+        /// <summary>Which of the screens before a run is showing (only meaningful while OnTitle).</summary>
+        public TitleStep Step { get; private set; }
+
+        /// <summary>Zero-based page of the tutorial being read.</summary>
+        public int TutorialPage { get; private set; }
+
+        /// <summary>Index into GameConfig.characters of the character the run is played with.</summary>
+        public int SelectedCharacter { get; private set; }
+
+        public int CharacterCount => config.characters == null ? 0 : config.characters.Count;
+
+        const string TutorialSeenKey = "VoidConverter.TutorialSeen";
+
+        /// <summary>True once the tutorial was read through or skipped (kept between launches).</summary>
+        public bool TutorialSeen
+        {
+            get => PlayerPrefs.GetInt(TutorialSeenKey, 0) == 1;
+            private set
+            {
+                PlayerPrefs.SetInt(TutorialSeenKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
 
         /// <summary>Shows the title screen (a view calls this once at the start; headless callers such as the balance sim never do).</summary>
         public void ShowTitle()
         {
             OnTitle = true;
+            Step = TitleStep.Title;
             InputLocked = true;
             Changed?.Invoke();
         }
 
-        /// <summary>Leaves the title screen and starts playing the first stage.</summary>
+        /// <summary>Start on the title screen: a first-time player gets the tutorial, everyone else goes to character select.</summary>
+        public void PressStart()
+        {
+            if (!OnTitle || Step != TitleStep.Title) return;
+            if (TutorialSeen) GoToStep(TitleStep.CharacterSelect);
+            else OpenTutorial();
+        }
+
+        /// <summary>Opens the tutorial from its first page (also from the title's How to Play button).</summary>
+        public void OpenTutorial()
+        {
+            if (!OnTitle) return;
+            TutorialPage = 0;
+            GoToStep(TitleStep.Tutorial);
+        }
+
+        /// <summary>Next tutorial page; after the last one the tutorial counts as seen and character select opens.</summary>
+        public void NextTutorialPage()
+        {
+            if (!OnTitle || Step != TitleStep.Tutorial) return;
+            if (TutorialPage + 1 < TutorialPageCount)
+            {
+                TutorialPage++;
+                Changed?.Invoke();
+                return;
+            }
+            FinishTutorial();
+        }
+
+        public void PreviousTutorialPage()
+        {
+            if (!OnTitle || Step != TitleStep.Tutorial || TutorialPage == 0) return;
+            TutorialPage--;
+            Changed?.Invoke();
+        }
+
+        /// <summary>Leaves the tutorial early. It counts as seen, so it does not open by itself again.</summary>
+        public void FinishTutorial()
+        {
+            if (!OnTitle || Step != TitleStep.Tutorial) return;
+            TutorialSeen = true;
+            GoToStep(TitleStep.CharacterSelect);
+        }
+
+        /// <summary>Back one screen: character select to the title, the tutorial to the title.</summary>
+        public void GoBack()
+        {
+            if (!OnTitle || Step == TitleStep.Title) return;
+            GoToStep(TitleStep.Title);
+        }
+
+        /// <summary>How many pages the tutorial has (the text itself lives in the view).</summary>
+        public int TutorialPageCount { get; set; } = 1;
+
+        void GoToStep(TitleStep step)
+        {
+            Step = step;
+            Changed?.Invoke();
+        }
+
+        /// <summary>Picks the character and starts a fresh run with it.</summary>
+        public void ChooseCharacter(int index)
+        {
+            if (!OnTitle || Step != TitleStep.CharacterSelect) return;
+            if (index < 0 || index >= Math.Max(1, CharacterCount)) return;
+            SelectedCharacter = index;
+            StartGame();
+        }
+
+        /// <summary>Leaves the title screens and starts playing the first stage with the selected character.</summary>
         public void StartGame()
         {
             if (!OnTitle) return;
             Transition(() =>
             {
+                ResetRun();
                 OnTitle = false;
                 InputLocked = false;
+            }, 0f);
+        }
+
+        /// <summary>After a run ended: back to character select (the tutorial is not shown again).</summary>
+        void ReturnToCharacterSelect()
+        {
+            Transition(() =>
+            {
+                OnTitle = true;
+                Step = TitleStep.CharacterSelect;
+                InputLocked = true;
             }, 0f);
         }
 
@@ -165,7 +276,20 @@ namespace VoidConverter.Game
 
             if (OnTitle)
             {
-                if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) StartGame();
+                bool confirm = keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame;
+                if (Step == TitleStep.Title && confirm) PressStart();
+                else if (Step == TitleStep.Tutorial)
+                {
+                    if (confirm || keyboard.rightArrowKey.wasPressedThisFrame) NextTutorialPage();
+                    else if (keyboard.leftArrowKey.wasPressedThisFrame) PreviousTutorialPage();
+                    else if (keyboard.escapeKey.wasPressedThisFrame) FinishTutorial();
+                }
+                else if (Step == TitleStep.CharacterSelect)
+                {
+                    if (keyboard.digit1Key.wasPressedThisFrame) ChooseCharacter(0);
+                    else if (keyboard.digit2Key.wasPressedThisFrame) ChooseCharacter(1);
+                    else if (keyboard.escapeKey.wasPressedThisFrame) GoBack();
+                }
                 return;
             }
             if (InputLocked) return;
@@ -211,17 +335,16 @@ namespace VoidConverter.Game
         }
 
         /// <summary>Starts a fresh run: first stage, full HP, no gold, no corruption.</summary>
-        public void NewRun()
+        public void NewRun() => Transition(ResetRun, 0f);
+
+        void ResetRun()
         {
-            Transition(() =>
-            {
-                Player = config.CreatePlayer();
-                Stage = 1;
-                Message = "";
-                eventPool = config.CreateEvents();
-                seenEvents.Clear();
-                EnterStage();
-            }, 0f);
+            Player = config.CreatePlayer(SelectedCharacter);
+            Stage = 1;
+            Message = "";
+            eventPool = config.CreateEvents();
+            seenEvents.Clear();
+            EnterStage();
         }
 
         /// <summary>
@@ -314,7 +437,8 @@ namespace VoidConverter.Game
             }
             if (Phase != RunPhase.Playing)
             {
-                NewRun();
+                // The run is over: choose a character again.
+                ReturnToCharacterSelect();
                 return;
             }
             if (IsBossStage)
