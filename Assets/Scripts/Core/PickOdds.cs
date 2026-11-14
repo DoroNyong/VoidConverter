@@ -33,6 +33,31 @@ namespace VoidConverter.Core
     public static class PickOdds
     {
         /// <summary>
+        /// The chance (0..1) that this cell ends the run if it fires: the damage of its own effect (a lost fight, a trap)
+        /// plus <paramref name="extraDamage"/> (the boss's danger zone) reaches the player's HP.
+        /// </summary>
+        public static float DeathChance(PlayerStats player, ActivatedCell cell, int trapDamage, int extraDamage)
+        {
+            int hp = player.Hp;
+            if (extraDamage >= hp) return 1f;
+            switch (cell.Type)
+            {
+                case CellType.Monster:
+                    if (cell.Magic) return System.Math.Max(0, cell.Power - player.Magic) + extraDamage >= hp ? 1f : 0f;
+                    int min = player.AttackMin, max = player.AttackMax, deadly = 0;
+                    for (int roll = min; roll <= max; roll++)
+                    {
+                        if (System.Math.Max(0, cell.Power - roll) + extraDamage >= hp) deadly++;
+                    }
+                    return (float)deadly / (max - min + 1);
+                case CellType.Trap:
+                    return trapDamage + extraDamage >= hp ? 1f : 0f;
+                default:
+                    return 0f;
+            }
+        }
+
+        /// <summary>
         /// <paramref name="candidates"/> are the fresh cells under the block. Each one's chance comes from
         /// <see cref="PickChance"/> (equal unless the player has tile weights).
         /// A monster fight is the player's attack roll (uniform over their range) against its power.

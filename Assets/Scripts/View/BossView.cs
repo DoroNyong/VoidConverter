@@ -69,9 +69,11 @@ namespace VoidConverter.View
             bool ready = controller.BossReady;
             body.color = ready ? ReadyColor : WaitingColor;
             status.text = ready
-                ? "Click to\ndefeat!"
+                ? (controller.IsFinalBossRound ? "Click to\ndefeat!" : "Click:\nnext phase")
                 : controller.PickOneRule
-                    ? $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}"
+                    ? (controller.BossRounds > 1
+                        ? $"Phase {controller.BossRound}/{controller.BossRounds}\n{controller.PlacementsUsed}/{controller.MinPlacements}"
+                        : $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}")
                 : controller.ClearRule
                     ? $"Monsters\nleft {controller.MonstersLeft}"
                     : $"Hold out\n{Mathf.Min(controller.PlacementsUsed, controller.BossHoldTarget)}/{controller.BossHoldTarget}";

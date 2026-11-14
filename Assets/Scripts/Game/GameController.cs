@@ -89,6 +89,15 @@ namespace VoidConverter.Game
                        : ClearRule ? MonstersLeft == 0
                        : PlacementsUsed >= BossHoldTarget || OutOfPlacements || !Hand.AnyPlaceable(Grid.CanPlaceAnywhere));
 
+        /// <summary>The boss stage is played on this many boards in a row; the boss falls after the last one.</summary>
+        public int BossRounds => Mathf.Max(1, config.bossRounds);
+        /// <summary>Which board of the boss stage is being played (1-based).</summary>
+        public int BossRound { get; private set; } = 1;
+        public bool IsFinalBossRound => BossRound >= BossRounds;
+
+        /// <summary>The boss stage's danger zone, or null outside it (see DangerZone).</summary>
+        public DangerZone Zone { get; private set; }
+
         /// <summary>Summary of what the last action did, shown in the HUD.</summary>
         public string Message { get; private set; } = "";
 
@@ -163,6 +172,12 @@ namespace VoidConverter.Game
 
             // Debug: restart the whole run.
             if (keyboard.gKey.wasPressedThisFrame) NewRun();
+            // Debug: N jumps to the next stage from anywhere (the last stage clears the run).
+            if (keyboard.nKey.wasPressedThisFrame && (Phase == RunPhase.Playing || Phase == RunPhase.Event || Phase == RunPhase.Shop))
+            {
+                AdvanceStage(0f, true);
+                return;
+            }
             if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) PressMainButton();
             if (keyboard.eKey.wasPressedThisFrame) RerollHand();
 
@@ -234,6 +249,7 @@ namespace VoidConverter.Game
         void EnterStage()
         {
             shopOffers = new List<ShopOffer>();
+            Zone = null;
             CurrentEvent = null;
             EventChoiceTaken = -1;
             switch (CurrentStage)
@@ -250,6 +266,7 @@ namespace VoidConverter.Game
                     break;
                 default:
                     Phase = RunPhase.Playing;
+                    BossRound = 1;
                     StartRound();
                     break;
             }
@@ -264,6 +281,12 @@ namespace VoidConverter.Game
             };
             Grid.Generate(config.ToGridSettings(Stage), rng);
             if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
+            if (CurrentStage == StageType.Boss && config.pickOneRule && config.bossZoneEnabled)
+            {
+                int zx = config.bossZoneStartX >= 0 ? config.bossZoneStartX : Grid.Width / 2;
+                int zy = config.bossZoneStartY >= 0 ? config.bossZoneStartY : Grid.Height / 2;
+                Zone = new DangerZone(Mathf.Clamp(zx, 0, Grid.Width - 1), Mathf.Clamp(zy, 0, Grid.Height - 1));
+            }
             // The first void power comes from the current corruption, which carries over between rounds.
             Grid.RerollVoidPower(Player, config.ToVoidSettings(), rng);
             Hand = new Hand(config.handSize, config.FixedHandSizesOrNull());
@@ -342,6 +365,17 @@ namespace VoidConverter.Game
         public bool DefeatBoss()
         {
             if (InputLocked || !BossReady) return false;
+            if (!IsFinalBossRound)
+            {
+                // The boss is not down yet: the same stage goes on with a fresh board (same HP, gold and items).
+                Message = $"The boss survived! Phase {BossRound + 1}/{BossRounds}";
+                Transition(() =>
+                {
+                    BossRound++;
+                    StartRound();
+                }, 0f);
+                return true;
+            }
             Message = "Boss defeated!";
             AdvanceStage(0f, false);
             return true;
@@ -545,6 +579,7 @@ namespace VoidConverter.Game
 
             string line;
             FeedbackEvent? feedback = null;
+            FeedbackEvent? zoneFeedback = null;
             if (result.Activated.Count == 0)
             {
                 line = "Nothing under the block";
@@ -593,6 +628,20 @@ namespace VoidConverter.Game
                         line = "Nothing happened";
                         break;
                 }
+
+                // The boss's danger zone: judged where it stood when the block was placed, then it steps toward the fired cell.
+                if (Zone != null)
+                {
+                    if (Zone.Contains(fx, fy))
+                    {
+                        bool middle = Zone.IsCenter(fx, fy) && config.bossZoneCenterKills;
+                        int damage = middle ? Player.Hp : config.bossZoneDamage;
+                        Player.TakeDamage(damage);
+                        line += middle ? "\nDANGER ZONE CENTER!  Defeated at once" : $"\nDANGER ZONE!  -{damage} HP";
+                        zoneFeedback = new FeedbackEvent { Kind = FeedbackKind.Trap, X = fx, Y = fy, Amount = damage };
+                    }
+                    Zone.MoveToward(fx, fy);
+                }
             }
 
             PlacementsUsed++;
@@ -613,6 +662,7 @@ namespace VoidConverter.Game
 
             Changed?.Invoke();
             if (feedback.HasValue) Fired?.Invoke(feedback.Value);
+            if (zoneFeedback.HasValue) Fired?.Invoke(zoneFeedback.Value);
             return true;
         }
 
@@ -625,7 +675,9 @@ namespace VoidConverter.Game
             // Nothing moves on by itself: the round is over, and the button (Next Stage / Defeat Boss) goes on.
             RoundOver = true;
             Message += IsBossStage
-                ? $"\nThe boss is open! (${RoundGold} earned)  Press the button to defeat it."
+                ? IsFinalBossRound
+                    ? $"\nThe boss is open! (${RoundGold} earned)  Press the button to defeat it."
+                    : $"\nThe boss is hurt! (${RoundGold} earned)  Press the button for the next phase."
                 : $"\nStage {Stage} complete (${RoundGold} earned)  Press the button to go on.";
         }
 

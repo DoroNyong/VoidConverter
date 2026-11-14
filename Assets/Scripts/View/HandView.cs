@@ -267,12 +267,28 @@ namespace VoidConverter.View
             var chances = PickChance.Probabilities(candidates, controller.Player);
             var cellPositions = new List<Vector2>(candidates.Count);
             var cellChances = new List<float>(candidates.Count);
+            var cellDangers = new List<int>(candidates.Count);
+            // The boss's danger zone: a cell inside it hurts, its middle cell ends the run.
+            var zone = controller.Zone;
+            // Danger per cell: 0 safe, 1 zone hit, 2 certain defeat, 3 defeat possible (a fight that can be lost for good).
+            float zoneHitChance = 0f, deathChance = 0f;
             for (int i = 0; i < candidates.Count; i++)
             {
                 cellPositions.Add(gridView.CellToWorld(candidates[i].X, candidates[i].Y));
                 cellChances.Add(chances[i]);
+                int extra = 0;
+                bool inZone = zone != null && zone.Contains(candidates[i].X, candidates[i].Y);
+                if (inZone)
+                {
+                    bool middle = zone.IsCenter(candidates[i].X, candidates[i].Y) && config.bossZoneCenterKills;
+                    extra = middle ? controller.Player.Hp : config.bossZoneDamage;
+                }
+                float death = PickOdds.DeathChance(controller.Player, candidates[i], config.trapDamage, extra);
+                deathChance += chances[i] * death;
+                if (inZone && death < 1f) zoneHitChance += chances[i];
+                cellDangers.Add(death >= 1f ? 2 : death > 0f ? 3 : inZone ? 1 : 0);
             }
-            marks.Show(cellPositions, cellChances);
+            marks.Show(cellPositions, cellChances, cellDangers);
 
             if (odds.Candidates == 0)
             {
@@ -292,6 +308,8 @@ namespace VoidConverter.View
                 }
                 if (odds.Traps > 0) lines.Add($"Trap {Percent(odds.TrapChance)}%  (-{config.trapDamage} HP)");
                 if (odds.Heals > 0) lines.Add($"Heal {Percent(odds.HealChance)}%  (+{config.healCellAmount} HP)");
+                if (deathChance > 0f) lines.Add($"DEFEAT {Percent(deathChance)}%");
+                if (zoneHitChance > 0f) lines.Add($"Zone hit {Percent(zoneHitChance)}%  (-{config.bossZoneDamage} HP)");
                 lines.Add($"Avg ${odds.ExpectedGold:0.0}   HP {(odds.ExpectedHeal - odds.ExpectedDamage):+0.0;-0.0;0.0}");
                 ghostInfo.text = string.Join("\n", lines);
                 // The more gold on average, the greener.

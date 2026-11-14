@@ -285,6 +285,21 @@ namespace VoidConverter.Data
         public int bossStrongMonsterCount = 3;
         public int bossStrongMonsterPower = 5;
 
+        [Header("Boss phases (Pick-One)")]
+        [Tooltip("The boss stage is played on this many fresh boards in a row. The boss falls after the last one.")]
+        public int bossRounds = 2;
+
+        [Header("Boss danger zone (Pick-One)")]
+        [Tooltip("The boss stage has a 3x3 danger zone that follows the cell that fired.")]
+        public bool bossZoneEnabled = true;
+        [Tooltip("HP lost when the fired cell is in the zone (not the middle cell).")]
+        public int bossZoneDamage = 4;
+        [Tooltip("The zone's middle cell defeats the player at once. Off = it hits as hard as the rest.")]
+        public bool bossZoneCenterKills = true;
+        [Tooltip("Where the zone starts, as a cell. -1 = the middle of the board.")]
+        public int bossZoneStartX = -1;
+        public int bossZoneStartY = -1;
+
         [Header("Screen Transition")]
         [Tooltip("Seconds for each half of a screen transition (fade out, then fade in). 0 = switch screens at once.")]
         public float fadeSeconds = 0.3f;

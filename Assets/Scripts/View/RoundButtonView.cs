@@ -107,7 +107,7 @@ namespace VoidConverter.View
                 // Reaching the goal unlocks the button: cash out now, or keep placing for more.
                 bool reached = controller.IsBossStage ? controller.BossReady : controller.CanEndRound;
                 string waiting = $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}";
-                string go = controller.IsBossStage ? "Defeat\nBoss" : controller.RoundOver ? "Next\nStage" : "Leave";
+                string go = controller.IsBossStage ? (controller.IsFinalBossRound ? "Defeat\nBoss" : "Next\nPhase") : controller.RoundOver ? "Next\nStage" : "Leave";
                 label.text = reached ? go : waiting;
                 background.color = reached ? EnabledColor : DisabledColor;
             }
