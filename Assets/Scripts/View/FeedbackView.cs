@@ -184,7 +184,7 @@ namespace VoidConverter.View
             {
                 // A little pitch variation so repeated hits do not sound identical.
                 source.pitch = Random.Range(0.94f, 1.06f);
-                source.PlayOneShot(clip, volume);
+                source.PlayOneShot(clip, volume * VoidConverter.Game.GameSettings.SfxVolume);
             }
             StartCoroutine(Pop(pos));
             StartCoroutine(Burst(pos, color, burstSize));

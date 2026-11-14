@@ -32,16 +32,6 @@ namespace VoidConverter.View
 
         const int CharacterSlots = 2;
 
-        // The tutorial: one page per entry (title, body). Text is ASCII only, like the rest of the UI.
-        static readonly string[][] TutorialPages =
-        {
-            new[] { "THE BOARD", "Every stage is a 5x5 board.\nCells hold monsters, gold,\nhealing, traps or the Void.\n\nSurvive and clear all stages." },
-            new[] { "PLACE A BLOCK", "Pick one of your blocks and drag\nit onto the board.\nR or right click rotates it.\n\nE swaps your blocks for new ones." },
-            new[] { "ONE CELL FIRES", "A block covers several cells,\nbut only ONE of them fires.\nThe chance shows on each cell.\n\nEvery covered cell is spent\neither way." },
-            new[] { "READ THE WARNINGS", "A red DEAD tag means that cell\ncould end your run.\nPurple marks the boss's danger\nzone, which hurts on top of the\ncell's own effect." },
-            new[] { "STAGES", "Battles, events and shops lead\nto a boss in two phases.\nSpace ends a stage early.\n\nGood luck!" },
-        };
-
         class Button
         {
             public GameObject Root;
@@ -100,7 +90,7 @@ namespace VoidConverter.View
         {
             controller = FindFirstObjectByType<GameController>();
             cam = Camera.main;
-            controller.TutorialPageCount = TutorialPages.Length;
+            controller.TutorialPageCount = Loc.TutorialPageCount;
 
             root = new GameObject("Screen");
             root.transform.SetParent(transform, false);
@@ -123,18 +113,20 @@ namespace VoidConverter.View
                 var center = new Vector2(i == 0 ? -2.5f : 2.5f, 0.15f);
                 cards[i] = MakeButton("Card " + (i + 1), center, new Vector2(4.4f, 3.6f), CardColor, 0.05f, () => controller.ChooseCharacter(index));
                 cards[i].Label.text = "";
-                swatches[i] = SpriteUtil.AddSquare(cards[i].Root.transform, "Swatch", center + new Vector2(0f, 0.85f), 1.3f, Color.white, SwatchOrder);
-                cardNames[i] = TextUtil.AddText(cards[i].Root.transform, "Name", center + new Vector2(0f, -0.2f), "", 64, 0.08f, Color.white, TextOrder);
-                cardTexts[i] = TextUtil.AddText(cards[i].Root.transform, "Text", center + new Vector2(0f, -1.1f), "", 64, 0.04f, TextColor, TextOrder);
+                swatches[i] = SpriteUtil.AddSquare(cards[i].Root.transform, "Swatch", center + new Vector2(0f, 1.0f), 1.1f, Color.white, SwatchOrder);
+                cardNames[i] = TextUtil.AddText(cards[i].Root.transform, "Name", center + new Vector2(0f, 0.15f), "", 64, 0.08f, Color.white, TextOrder);
+                cardTexts[i] = TextUtil.AddText(cards[i].Root.transform, "Text", center + new Vector2(0f, -0.95f), "", 64, 0.04f, TextColor, TextOrder);
             }
 
             controller.Changed += Refresh;
+            GameSettings.Changed += Refresh;
             // The run starts on the title screen.
             controller.ShowTitle();
         }
 
         void OnDestroy()
         {
+            GameSettings.Changed -= Refresh;
             if (controller != null) controller.Changed -= Refresh;
         }
 
@@ -167,7 +159,7 @@ namespace VoidConverter.View
                 if (visible) Refresh();
             }
             // Buttons work once the screen is fully shown (not during a fade).
-            showing = visible && (controller.OnTitle || !controller.InputLocked);
+            showing = visible && !controller.SettingsOpen && (controller.OnTitle || !controller.InputLocked);
 
             if (!showing) return;
             var mouse = Mouse.current;
@@ -226,27 +218,27 @@ namespace VoidConverter.View
         {
             heading.text = "VOID\nCONVERTER";
             heading.color = TitleColor;
-            details.text = "Place a block.\nOne covered cell fires.";
-            details.transform.localPosition = new Vector2(0f, 0.3f);
-            mainButton.Label.text = "Start";
-            sideButton.Label.text = "How to Play";
-            hint.text = "or press Space";
+            details.text = Loc.T("title.tagline");
+            details.transform.localPosition = new Vector2(0f, 0.1f);
+            mainButton.Label.text = Loc.T("title.start");
+            sideButton.Label.text = Loc.T("title.howto");
+            hint.text = Loc.T("title.hint");
             hint.transform.localPosition = new Vector2(0f, -4.0f);
             Show(mainButton, sideButton);
         }
 
         void ShowTutorialStep()
         {
-            int page = Mathf.Clamp(controller.TutorialPage, 0, TutorialPages.Length - 1);
-            bool last = page == TutorialPages.Length - 1;
-            heading.text = TutorialPages[page][0];
+            int page = Mathf.Clamp(controller.TutorialPage, 0, Loc.TutorialPageCount - 1);
+            bool last = page == Loc.TutorialPageCount - 1;
+            heading.text = Loc.T("tut." + page + ".title");
             heading.color = TitleColor;
-            details.text = TutorialPages[page][1];
+            details.text = Loc.T("tut." + page + ".body");
             details.transform.localPosition = new Vector2(0f, 0.2f);
-            mainButton.Label.text = last ? "Choose Character" : "Next";
-            backButton.Label.text = "Back";
-            skipButton.Label.text = last ? "" : "Skip";
-            hint.text = $"{page + 1} / {TutorialPages.Length}      Space: next    Left: back    Esc: skip";
+            mainButton.Label.text = last ? Loc.T("tut.choose") : Loc.T("tut.next");
+            backButton.Label.text = Loc.T("tut.back");
+            skipButton.Label.text = last ? "" : Loc.T("tut.skip");
+            hint.text = Loc.T("tut.hint", page + 1, Loc.TutorialPageCount);
             hint.transform.localPosition = new Vector2(0f, -3.4f);
 
             var buttons = new List<Button> { mainButton };
@@ -257,13 +249,13 @@ namespace VoidConverter.View
 
         void ShowSelectStep()
         {
-            heading.text = "CHOOSE A CHARACTER";
+            heading.text = Loc.T("select.heading");
             heading.color = TitleColor;
             heading.transform.localPosition = new Vector2(0f, 3.4f);
             details.text = "";
-            hint.text = "Click a card, or press 1 / 2";
+            hint.text = Loc.T("select.hint");
             hint.transform.localPosition = new Vector2(0f, -3.4f);
-            selectBackButton.Label.text = "Back";
+            selectBackButton.Label.text = Loc.T("select.back");
 
             var config = controller.Config;
             var buttons = new List<Button>();
@@ -272,31 +264,31 @@ namespace VoidConverter.View
                 if (i >= controller.CharacterCount) continue;
                 var c = config.characters[i];
                 swatches[i].color = c.color;
-                cardNames[i].text = $"{i + 1}. {c.displayName}";
-                cardTexts[i].text = $"HP {c.maxHp}    ATK {c.attack}    MAG {c.magic}\n\n{c.description}";
+                cardNames[i].text = $"{i + 1}. {Loc.TOr("char." + c.displayName + ".name", c.displayName)}";
+                cardTexts[i].text = $"HP {c.maxHp}    ATK {c.attack}    MAG {c.magic}\n{Loc.TOr("char." + c.displayName + ".desc", c.description)}";
                 buttons.Add(cards[i]);
             }
             // With no character configured the run still starts with the plain Player block.
             if (buttons.Count == 0) buttons.Add(mainButton);
             buttons.Add(selectBackButton);
             Show(buttons.ToArray());
-            if (buttons.Contains(mainButton)) mainButton.Label.text = "Start";
+            if (buttons.Contains(mainButton)) mainButton.Label.text = Loc.T("title.start");
         }
 
         void ShowEndStep(bool cleared)
         {
             var p = controller.Player;
-            heading.text = cleared ? "CLEARED!" : "DEFEATED";
+            heading.text = cleared ? Loc.T("end.cleared") : Loc.T("end.defeated");
             heading.color = cleared ? ClearColor : DeadColor;
 
             var items = new List<string>();
             foreach (var item in controller.Items) items.Add(item.Name);
-            string itemLine = items.Count > 0 ? "Items: " + string.Join(", ", items) : "No items";
-            string progress = cleared ? "All stages done" : $"Reached stage {controller.Stage}/{controller.StageCount}";
-            details.text = $"{progress}\nGold {p.Gold}    HP {p.Hp}/{p.MaxHp}    ATK {p.AttackMin}    MAG {p.Magic}\n{itemLine}";
+            string itemLine = items.Count > 0 ? Loc.T("end.items", string.Join(", ", items)) : Loc.T("end.noItems");
+            string progress = cleared ? Loc.T("end.allDone") : Loc.T("end.reached", controller.Stage, controller.StageCount);
+            details.text = progress + "\n" + Loc.T("end.stats", p.Gold, p.Hp, p.MaxHp, p.AttackMin, p.Magic) + "\n" + itemLine;
             details.transform.localPosition = new Vector2(0f, 0.3f);
-            mainButton.Label.text = "Play Again";
-            hint.text = "or press Space";
+            mainButton.Label.text = Loc.T("end.again");
+            hint.text = Loc.T("title.hint");
             hint.transform.localPosition = new Vector2(0f, -2.95f);
             Show(mainButton);
         }

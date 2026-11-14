@@ -115,8 +115,46 @@ namespace VoidConverter.Game
 
         public TransitionRunner Transitioner { get; set; }
 
-        /// <summary>True while a transition runs. Every player action is ignored until it ends.</summary>
-        public bool InputLocked { get; private set; }
+        bool transitionLock;
+
+        /// <summary>
+        /// True while a transition runs, the settings menu is open or the screens before a run are up. Every player
+        /// action is ignored until then.
+        /// </summary>
+        public bool InputLocked
+        {
+            // A click that closed the settings menu must not also reach the game on the same frame.
+            get => transitionLock || SettingsOpen || OnTitle || settingsToggledFrame == Time.frameCount;
+            private set => transitionLock = value;
+        }
+
+        /// <summary>True while a screen transition (fade) runs.</summary>
+        public bool Transitioning => transitionLock;
+
+        /// <summary>True while the settings menu covers the game.</summary>
+        public bool SettingsOpen { get; private set; }
+
+        int settingsToggledFrame = -1;
+
+        /// <summary>Opens or closes the settings menu (called by its view). Remembers the frame, so a key press that closed it is not read twice.</summary>
+        public void SetSettingsOpen(bool open)
+        {
+            if (SettingsOpen == open) return;
+            SettingsOpen = open;
+            settingsToggledFrame = Time.frameCount;
+            Changed?.Invoke();
+        }
+
+        /// <summary>Leaves the run (or the end screen) for the title screen. The run in progress is dropped.</summary>
+        public void ReturnToTitle()
+        {
+            if (OnTitle && Step == TitleStep.Title) return;
+            Transition(() =>
+            {
+                OnTitle = true;
+                Step = TitleStep.Title;
+            }, 0f);
+        }
 
         /// <summary>The event of the current Event stage, or null outside it.</summary>
         public EventDefinition CurrentEvent { get; private set; }
@@ -273,6 +311,8 @@ namespace VoidConverter.Game
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
+            // The settings menu owns the keyboard while it is open (and on the frame it was closed by a key).
+            if (SettingsOpen || settingsToggledFrame == Time.frameCount) return;
 
             if (OnTitle)
             {

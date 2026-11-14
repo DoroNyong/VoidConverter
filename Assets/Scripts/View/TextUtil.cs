@@ -1,30 +1,76 @@
+using System.Collections.Generic;
 using UnityEngine;
+using VoidConverter.Game;
 
 namespace VoidConverter.View
 {
-    /// <summary>World-space text via TextMesh, so no UI canvas or font asset import is needed. ASCII only.</summary>
+    /// <summary>
+    /// World-space text via TextMesh, so no UI canvas or font asset import is needed. The built-in font has no Korean,
+    /// so while the language is Korean every text switches to a Korean font: Resources/Fonts/Korean (put a font file
+    /// there, e.g. Noto Sans KR or Pretendard) if it exists, else an installed system font (works on Windows / Mac
+    /// builds, not in a web build).
+    /// </summary>
     public static class TextUtil
     {
-        static Font font;
+        static readonly string[] SystemKoreanFonts = { "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", "NanumGothic" };
+
+        static Font defaultFont;
+        static Font koreanFont;
+        static bool koreanLoaded;
+        static bool subscribed;
+        static readonly List<TextMesh> meshes = new List<TextMesh>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            defaultFont = null;
+            koreanFont = null;
+            koreanLoaded = false;
+            subscribed = false;
+            meshes.Clear();
+        }
 
         static Font DefaultFont
         {
             get
             {
-                if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                return font;
+                if (defaultFont == null) defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                return defaultFont;
             }
         }
+
+        static Font KoreanFont
+        {
+            get
+            {
+                if (!koreanLoaded)
+                {
+                    koreanLoaded = true;
+                    koreanFont = Resources.Load<Font>("Fonts/Korean");
+                    if (koreanFont == null) koreanFont = Font.CreateDynamicFontFromOSFont(SystemKoreanFonts, 64);
+                }
+                return koreanFont != null ? koreanFont : DefaultFont;
+            }
+        }
+
+        static Font CurrentFont => GameSettings.Language == Language.Korean ? KoreanFont : DefaultFont;
 
         public static TextMesh AddText(Transform parent, string name, Vector2 localPos, string text,
             int fontSize, float characterSize, Color color, int order)
         {
+            if (!subscribed)
+            {
+                subscribed = true;
+                GameSettings.Changed += RefreshFonts;
+            }
+
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
 
+            var font = CurrentFont;
             var tm = go.AddComponent<TextMesh>();
-            tm.font = DefaultFont;
+            tm.font = font;
             tm.text = text;
             tm.fontSize = fontSize;
             tm.characterSize = characterSize;
@@ -33,9 +79,23 @@ namespace VoidConverter.View
             tm.color = color;
 
             var renderer = go.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = DefaultFont.material;
+            renderer.sharedMaterial = font.material;
             renderer.sortingOrder = order;
+            meshes.Add(tm);
             return tm;
+        }
+
+        /// <summary>Gives every text the font of the current language (after the language setting changed).</summary>
+        static void RefreshFonts()
+        {
+            var font = CurrentFont;
+            meshes.RemoveAll(m => m == null);
+            foreach (var tm in meshes)
+            {
+                if (tm.font == font) continue;
+                tm.font = font;
+                tm.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+            }
         }
     }
 }
