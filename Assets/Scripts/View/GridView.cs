@@ -111,6 +111,10 @@ namespace VoidConverter.View
             return config.OffsetToCell((Vector2)(world - transform.position));
         }
 
+        // Where a monster's feet stand below the tile's center (as a fraction of the tile height), and how fast it idles.
+        const float MonsterFootDrop = 0.28f;
+        const float MonsterFps = 3f;
+
         static readonly Color BuffedLabelColor = new Color(1f, 0.92f, 0.3f);
         static readonly Color BuffLinkColor = new Color(1f, 0.92f, 0.3f, 0.9f);
 
@@ -161,7 +165,23 @@ namespace VoidConverter.View
                     // down to the lower part of the tile so it does not sit on the picture.
                     Vector2 labelAt = center;
                     float labelScale = 1f;
-                    if (art == null && TileArt.TryIcon(cell, tileW, tileH, out var icon, out float iconWidth, out float iconY))
+                    if (art == null && TileArt.TryMonster(cell, tileW, out var monsterFrames, out float monsterWidth))
+                    {
+                        // An animated monster standing on the tile: the frame's pivot is its feet. A dead one stays on its first frame.
+                        int order = Mathf.Clamp(1 + (grid.Width + grid.Height - 2) - (x + y), 1, 9);
+                        var monsterRenderer = SpriteUtil.AddSquare(transform, $"Monster {x},{y}", center + new Vector2(0f, -tileH * MonsterFootDrop), 1f,
+                            dead ? new Color(UsedDim, UsedDim, UsedDim, 1f) : Color.white, order);
+                        monsterRenderer.sprite = monsterFrames[0];
+                        float monsterScale = monsterWidth / monsterFrames[0].bounds.size.x;
+                        monsterRenderer.transform.localScale = new Vector3(monsterScale, monsterScale, 1f);
+                        if (!dead && monsterFrames.Length > 1)
+                        {
+                            monsterRenderer.gameObject.AddComponent<SpriteFrames>().Init(monsterRenderer, monsterFrames, MonsterFps, (x * 0.37f + y * 0.61f) % 1f);
+                        }
+                        labelAt = center + new Vector2(0f, -tileH * IconLabelDrop);
+                        labelScale = IconLabelScale;
+                    }
+                    else if (art == null && TileArt.TryIcon(cell, tileW, tileH, out var icon, out float iconWidth, out float iconY))
                     {
                         // A tile further down the screen is in front: its picture is drawn over the ones behind it.
                         int order = Mathf.Clamp(1 + (grid.Width + grid.Height - 2) - (x + y), 1, 9);

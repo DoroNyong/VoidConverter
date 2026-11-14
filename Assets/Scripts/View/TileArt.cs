@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VoidConverter.Core;
+using VoidConverter.Data;
 
 namespace VoidConverter.View
 {
@@ -74,6 +75,47 @@ namespace VoidConverter.View
             if (sprite == null) return false;
             width = tileWidth * style.WidthOfTile;
             yOffset = tileHeight * style.YOffsetOfTile;
+            return true;
+        }
+
+        // Monster sheets (Assets/Sprites/Monsters, found by file name through the SpriteLibrary): square frames with the
+        // pivot at the bottom middle. A frame of 24 pixels is this wide on the tile, so every monster has the same pixel
+        // size and a bigger frame (the Brute, 32) makes a bigger monster.
+        const float MonsterWidthPer24Px = 0.5f;
+        const float MonsterBasePixels = 24f;
+        static SpriteLibrary library;
+        static bool libraryLoaded;
+
+        static string SheetOf(MonsterSpecies species)
+        {
+            switch (species)
+            {
+                case MonsterSpecies.Slime: return "slime_idle";
+                case MonsterSpecies.Beast: return "beast_idle";
+                case MonsterSpecies.Wisp: return "wisp_idle";
+                case MonsterSpecies.Brute: return "brute_idle";
+                default: return null;
+            }
+        }
+
+        /// <summary>The idle frames of this monster and how wide a frame is in world units. False if its sheet is missing.</summary>
+        public static bool TryMonster(Cell cell, float tileWidth, out Sprite[] frames, out float width)
+        {
+            frames = null;
+            width = 0f;
+            if (cell.Type != CellType.Monster) return false;
+            string sheet = SheetOf(cell.Species);
+            if (sheet == null) return false;
+
+            if (!libraryLoaded)
+            {
+                library = Resources.Load<SpriteLibrary>(SpriteLibrary.ResourceName);
+                libraryLoaded = true;
+            }
+            if (library == null) return false;
+            frames = library.Frames(sheet);
+            if (frames == null) return false;
+            width = tileWidth * MonsterWidthPer24Px * frames[0].rect.height / MonsterBasePixels;
             return true;
         }
 

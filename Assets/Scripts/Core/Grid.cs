@@ -51,7 +51,12 @@ namespace VoidConverter.Core
                         buff = spec.BuffAdjacent;
                     }
                     // Empty cells start out spent, like a cell that was already activated.
-                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power, Magic = magic, BuffAmount = buff };
+                    // A magic monster that buffs is the Wisp, any other magic monster the Slime; a physical one is a
+                    // Brute from power 4 up and a Beast below that.
+                    var species = type != CellType.Monster ? MonsterSpecies.None
+                        : magic ? (buff > 0 ? MonsterSpecies.Wisp : MonsterSpecies.Slime)
+                        : power >= 4 ? MonsterSpecies.Brute : MonsterSpecies.Beast;
+                    cells[x, y] = new Cell { Type = type, Used = type == CellType.Empty, Power = power, Magic = magic, BuffAmount = buff, Species = species };
                 }
             }
             ChooseBuffTargets(rng);
@@ -473,6 +478,7 @@ namespace VoidConverter.Core
                 monsters[pick].Power = power;
                 // The boss's strong monsters hit the attack, never the (weaker) magic.
                 monsters[pick].Magic = false;
+                monsters[pick].Species = MonsterSpecies.Brute;
                 // A strong monster is no Wisp any more.
                 monsters[pick].BuffAmount = 0;
                 monsters[pick].BuffX = -1;

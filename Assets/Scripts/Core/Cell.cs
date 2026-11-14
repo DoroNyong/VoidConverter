@@ -13,9 +13,21 @@ namespace VoidConverter.Core
         Danger,
     }
 
+    /// <summary>Which monster a monster cell is. Only the picture depends on it; the rules use Magic, Power and BuffAmount.</summary>
+    public enum MonsterSpecies
+    {
+        None,
+        Slime,
+        Beast,
+        Wisp,
+        Brute,
+    }
+
     public class Cell
     {
         public CellType Type;
+        // Monster cells only: which monster it is (for its picture).
+        public MonsterSpecies Species;
         // Pick-One rule: a block was placed over this cell. A covered cell never fires and (with BlockCovered) takes no block again.
         public bool Covered;
         // Every cell locks once activated (a Danger void only when it breaks).
