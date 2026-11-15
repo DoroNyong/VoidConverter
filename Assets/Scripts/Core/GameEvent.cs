@@ -42,22 +42,22 @@ namespace VoidConverter.Core
             Cell = cell;
         }
 
-        /// <summary>Short effect text such as "Gold +10" or "HP +5" (ASCII, the HUD font has no Korean).</summary>
+        /// <summary>Short effect text such as "Gold +10" or "HP +5", in the current language.</summary>
         public string Summary
         {
             get
             {
                 switch (Kind)
                 {
-                    case EventEffectKind.Gold: return $"Gold {Amount:+#;-#}";
-                    case EventEffectKind.Heal: return $"HP +{Amount}";
-                    case EventEffectKind.Damage: return $"HP -{Amount}";
-                    case EventEffectKind.MaxHp: return $"Max HP {Amount:+#;-#}";
-                    case EventEffectKind.LoseItem: return "Lose an item";
-                    case EventEffectKind.GainItem: return Item != null ? $"Get {Item.Name}" : "Get ?";
-                    case EventEffectKind.Attack: return $"ATK {Amount:+#;-#}";
-                    case EventEffectKind.Magic: return $"MAG {Amount:+#;-#}";
-                    case EventEffectKind.TileWeight: return $"{Cell} cells {Amount:+#;-#}%";
+                    case EventEffectKind.Gold: return Loc.T("eff.gold", Loc.Signed(Amount));
+                    case EventEffectKind.Heal: return Loc.T("eff.heal", Amount);
+                    case EventEffectKind.Damage: return Loc.T("eff.damage", Amount);
+                    case EventEffectKind.MaxHp: return Loc.T("eff.maxhp", Loc.Signed(Amount));
+                    case EventEffectKind.LoseItem: return Loc.T("eff.loseItem");
+                    case EventEffectKind.GainItem: return Item != null ? Loc.T("eff.getItem", Item.Name) : Loc.T("eff.getUnknown");
+                    case EventEffectKind.Attack: return $"{Loc.T("stat.atk")} {Loc.Signed(Amount)}";
+                    case EventEffectKind.Magic: return $"{Loc.T("stat.mag")} {Loc.Signed(Amount)}";
+                    case EventEffectKind.TileWeight: return Loc.T("eff.tile", Loc.CellName(Cell), Loc.Signed(Amount));
                     default: return "-";
                 }
             }
@@ -91,7 +91,7 @@ namespace VoidConverter.Core
                     int before = player.Hp;
                     player.Heal(Amount);
                     // Healing at full HP gives nothing, so the text shows what was really gained.
-                    return $"HP +{player.Hp - before}";
+                    return Loc.T("eff.heal", player.Hp - before);
                 case EventEffectKind.Damage:
                     player.TakeDamage(Amount);
                     return Summary;
@@ -99,12 +99,12 @@ namespace VoidConverter.Core
                     player.AddMaxHp(Amount);
                     return Summary;
                 case EventEffectKind.LoseItem:
-                    if (player.Items.Count == 0) return "No item";
+                    if (player.Items.Count == 0) return Loc.T("eff.noItem");
                     var lost = player.Items[rng.Next(player.Items.Count)];
                     player.RemoveItem(lost);
-                    return $"Lost {lost.Name}";
+                    return Loc.T("eff.lost", lost.Name);
                 case EventEffectKind.GainItem:
-                    if (Item == null) return "No item";
+                    if (Item == null) return Loc.T("eff.noItem");
                     player.AddItem(Item);
                     return Summary;
                 case EventEffectKind.Attack:
@@ -124,13 +124,18 @@ namespace VoidConverter.Core
 
     public class EventChoice
     {
-        public string Label { get; }
+        readonly string baseLabel;
+        readonly string labelKey;
+        /// <summary>The button text in the current language (the config text unless the key has a translation).</summary>
+        public string Label => labelKey == null ? baseLabel : Loc.TOr(labelKey, baseLabel);
         /// <summary>Every effect, applied in this order. Empty means the choice does nothing (walk away).</summary>
         public IReadOnlyList<EventEffect> Effects { get; }
 
-        public EventChoice(string label, IReadOnlyList<EventEffect> effects)
+        /// <param name="labelKey">Key of the translated label (e.g. "event.old_chest.c0"), or null for none.</param>
+        public EventChoice(string label, IReadOnlyList<EventEffect> effects, string labelKey = null)
         {
-            Label = label;
+            baseLabel = label;
+            this.labelKey = labelKey;
             Effects = effects;
         }
 
@@ -139,7 +144,7 @@ namespace VoidConverter.Core
         {
             get
             {
-                if (Effects.Count == 0) return "Nothing";
+                if (Effects.Count == 0) return Loc.T("eff.nothing");
                 var parts = new List<string>();
                 foreach (var e in Effects) parts.Add(e.Summary);
                 return string.Join("  ", parts);
@@ -163,16 +168,20 @@ namespace VoidConverter.Core
     /// </summary>
     public class EventDefinition
     {
+        readonly string baseTitle;
+        readonly string baseDescription;
+
         public string Id { get; }
-        public string Title { get; }
-        public string Description { get; }
+        /// <summary>The title in the current language (the config text unless a translation exists for this id).</summary>
+        public string Title => Loc.TOr("event." + Id + ".title", baseTitle);
+        public string Description => Loc.TOr("event." + Id + ".desc", baseDescription);
         public IReadOnlyList<EventChoice> Choices { get; }
 
         public EventDefinition(string id, string title, string description, IReadOnlyList<EventChoice> choices)
         {
             Id = id;
-            Title = title;
-            Description = description;
+            baseTitle = title;
+            baseDescription = description;
             Choices = choices;
         }
     }
@@ -182,7 +191,7 @@ namespace VoidConverter.Core
         /// <summary>Applies every effect of the choice in order and returns a short result text such as "Gold +10".</summary>
         public static string Apply(PlayerStats player, EventChoice choice, System.Random rng)
         {
-            if (choice.Effects.Count == 0) return "Nothing happened";
+            if (choice.Effects.Count == 0) return Loc.T("eff.nothingHappened");
 
             var parts = new List<string>();
             foreach (var e in choice.Effects) parts.Add(e.Apply(player, rng));

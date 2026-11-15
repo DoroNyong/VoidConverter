@@ -6,7 +6,9 @@ namespace VoidConverter.Core
     public class ItemDefinition
     {
         public string Id { get; }
-        public string Name { get; }
+        readonly string baseName;
+        /// <summary>The display name in the current language (the config name, unless a translation exists for this id).</summary>
+        public string Name => Loc.TOr("item." + Id + ".name", baseName);
         /// <summary>Added to both ends of the player's attack range.</summary>
         public int AttackBonus { get; }
         public int MaxHpBonus { get; }
@@ -17,20 +19,20 @@ namespace VoidConverter.Core
         {
             MagicBonus = magicBonus;
             Id = id;
-            Name = name;
+            baseName = name;
             AttackBonus = attackBonus;
             MaxHpBonus = maxHpBonus;
         }
 
-        /// <summary>Short effect text such as "ATK +1" or "HP +5" (ASCII, the HUD font has no Korean).</summary>
+        /// <summary>Short effect text such as "ATK +1" or "HP +5", in the current language.</summary>
         public string Summary
         {
             get
             {
                 var parts = new List<string>();
-                if (AttackBonus != 0) parts.Add($"ATK {AttackBonus:+#;-#}");
-                if (MagicBonus != 0) parts.Add($"MAG {MagicBonus:+#;-#}");
-                if (MaxHpBonus != 0) parts.Add($"HP {MaxHpBonus:+#;-#}");
+                if (AttackBonus != 0) parts.Add($"{Loc.T("stat.atk")} {Loc.Signed(AttackBonus)}");
+                if (MagicBonus != 0) parts.Add($"{Loc.T("stat.mag")} {Loc.Signed(MagicBonus)}");
+                if (MaxHpBonus != 0) parts.Add($"{Loc.T("stat.hp")} {Loc.Signed(MaxHpBonus)}");
                 return parts.Count > 0 ? string.Join(" ", parts) : "-";
             }
         }

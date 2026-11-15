@@ -55,7 +55,12 @@ namespace VoidConverter.Game
             fullscreen = PlayerPrefs.GetInt(FullscreenKey, 0) == 1;
             resolutionIndex = Mathf.Clamp(PlayerPrefs.GetInt(ResolutionKey, 0), 0, ResolutionOptions.Length - 1);
             language = (Language)Mathf.Clamp(PlayerPrefs.GetInt(LanguageKey, (int)Language.English), 0, Enum.GetValues(typeof(Language)).Length - 1);
+            Core.Loc.Korean = language == Language.Korean;
         }
+
+        // The texts made by the rules (Core) are in the saved language from the first frame on.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void LoadAtStart() => Load();
 
         static void Save()
         {
@@ -103,7 +108,7 @@ namespace VoidConverter.Game
         public static Language Language
         {
             get { Load(); return language; }
-            set { Load(); language = value; Save(); Changed?.Invoke(); }
+            set { Load(); language = value; Core.Loc.Korean = language == Language.Korean; Save(); Changed?.Invoke(); }
         }
 
         /// <summary>The browser decides the size of a web build, so the window rows of the menu are hidden there.</summary>

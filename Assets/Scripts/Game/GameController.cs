@@ -171,8 +171,14 @@ namespace VoidConverter.Game
         {
             if (config == null) config = ScriptableObject.CreateInstance<GameConfig>();
             rng = new System.Random();
+            // Every view redraws when the language changes.
+            GameSettings.Changed += OnSettingsChanged;
             NewRun();
         }
+
+        void OnDestroy() => GameSettings.Changed -= OnSettingsChanged;
+
+        void OnSettingsChanged() => Changed?.Invoke();
 
         /// <summary>
         /// True while the screens before a run are up (title, tutorial, character select). Every player action is
@@ -209,9 +215,9 @@ namespace VoidConverter.Game
         /// <summary>Shows the title screen (a view calls this once at the start; headless callers such as the balance sim never do).</summary>
         public void ShowTitle()
         {
+            // OnTitle already blocks the game; the transition lock is for fades only (the Menu button checks it).
             OnTitle = true;
             Step = TitleStep.Title;
-            InputLocked = true;
             Changed?.Invoke();
         }
 
@@ -303,7 +309,6 @@ namespace VoidConverter.Game
             {
                 OnTitle = true;
                 Step = TitleStep.CharacterSelect;
-                InputLocked = true;
             }, 0f);
         }
 
@@ -488,7 +493,7 @@ namespace VoidConverter.Game
             }
             if (!CanEndRound) return;
 
-            Message = PickOneRule ? $"Left the stage with ${RoundGold} earned" : $"Stage {Stage} ended early";
+            Message = PickOneRule ? Loc.T("msg.left", RoundGold) : $"Stage {Stage} ended early";
             FinishRound();
             Changed?.Invoke();
         }
@@ -509,7 +514,7 @@ namespace VoidConverter.Game
                 Transition(() =>
                 {
                     Phase = RunPhase.Cleared;
-                    Message += (Message.Length > 0 ? "\n" : "") + $"CLEARED! Gold {Player.Gold}   (Space: restart)";
+                    Message += (Message.Length > 0 ? "\n" : "") + Loc.T("msg.cleared", Player.Gold);
                 }, delay);
                 return;
             }
@@ -532,7 +537,7 @@ namespace VoidConverter.Game
             if (!IsFinalBossRound)
             {
                 // The boss is not down yet: the same stage goes on with a fresh board (same HP, gold and items).
-                Message = $"The boss survived! Phase {BossRound + 1}/{BossRounds}";
+                Message = Loc.T("msg.bossSurvived", BossRound + 1, BossRounds);
                 Transition(() =>
                 {
                     BossRound++;
@@ -540,7 +545,7 @@ namespace VoidConverter.Game
                 }, 0f);
                 return true;
             }
-            Message = "Boss defeated!";
+            Message = Loc.T("msg.bossDefeated");
             AdvanceStage(0f, false);
             return true;
         }
@@ -554,14 +559,14 @@ namespace VoidConverter.Game
             var choice = CurrentEvent.Choices[index];
             if (!choice.IsAvailable(Player))
             {
-                Message = $"Cannot choose: {choice.Label}";
+                Message = Loc.T("msg.cannotChoose", choice.Label);
                 Changed?.Invoke();
                 return false;
             }
 
             string result = EventRules.Apply(Player, choice, rng);
             EventChoiceTaken = index;
-            Message = $"{choice.Label}: {result}";
+            Message = Loc.T("msg.choiceResult", choice.Label, result);
             Changed?.Invoke();
             return true;
         }
@@ -575,10 +580,10 @@ namespace VoidConverter.Game
             var result = Shop.Buy(Player, offer);
             Message = result switch
             {
-                Shop.BuyResult.Bought => $"Bought {offer.Name} ({offer.Summary}) for {offer.Price}",
-                Shop.BuyResult.NotEnoughGold => $"Not enough gold for {offer.Name} ({offer.Price})",
-                Shop.BuyResult.FullHealth => "HP is already full",
-                _ => "Already sold",
+                Shop.BuyResult.Bought => Loc.T("msg.bought", offer.Name, offer.Summary, offer.Price),
+                Shop.BuyResult.NotEnoughGold => Loc.T("msg.notEnough", offer.Name, offer.Price),
+                Shop.BuyResult.FullHealth => Loc.T("msg.hpFull"),
+                _ => Loc.T("msg.sold"),
             };
             Changed?.Invoke();
             return result == Shop.BuyResult.Bought;
@@ -704,7 +709,7 @@ namespace VoidConverter.Game
             if (Player.IsDead)
             {
                 Phase = RunPhase.Defeated;
-                Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
+                Message += "\n" + Loc.T("msg.defeatedIn", Stage, StageCount);
             }
             else if (CurrentStage == StageType.Boss)
             {
@@ -746,7 +751,7 @@ namespace VoidConverter.Game
             FeedbackEvent? zoneFeedback = null;
             if (result.Activated.Count == 0)
             {
-                line = "Nothing under the block";
+                line = Loc.T("msg.nothingUnder");
             }
             else
             {
@@ -756,40 +761,41 @@ namespace VoidConverter.Game
                 {
                     case CellType.Monster:
                         var fight = Combat.Fight(Player, cell.Power, rng, cell.Magic);
-                        string stat = cell.Magic ? "MAG" : "ATK";
+                        string stat = Loc.T(cell.Magic ? "stat.mag" : "stat.atk");
+                        string kind = Loc.T(cell.Magic ? "kind.magic" : "kind.physical");
                         if (fight.Won)
                         {
                             int gold = Mathf.RoundToInt(cell.Power * config.goldPerMonsterPower);
                             Player.AddGold(gold);
                             RoundGold += gold;
-                            line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} WIN  +${gold}";
+                            line = Loc.T("msg.monsterWin", kind, cell.Power, stat, fight.Roll, gold);
                             feedback = new FeedbackEvent { Kind = FeedbackKind.Win, X = fx, Y = fy, Amount = gold, Magic = cell.Magic, Power = cell.Power };
                         }
                         else
                         {
-                            line = $"{(cell.Magic ? "Magic" : "Physical")} monster {cell.Power}: {stat} {fight.Roll} LOSE  -{fight.Damage} HP";
+                            line = Loc.T("msg.monsterLose", kind, cell.Power, stat, fight.Roll, fight.Damage);
                             feedback = new FeedbackEvent { Kind = FeedbackKind.Lose, X = fx, Y = fy, Amount = fight.Damage, Magic = cell.Magic, Power = cell.Power };
                         }
                         break;
                     case CellType.Gold:
                         Player.AddGold(config.goldCellReward);
                         RoundGold += config.goldCellReward;
-                        line = $"Gold cell  +${config.goldCellReward}";
+                        line = Loc.T("msg.goldCell", config.goldCellReward);
                         feedback = new FeedbackEvent { Kind = FeedbackKind.Gold, X = fx, Y = fy, Amount = config.goldCellReward };
                         break;
                     case CellType.Trap:
                         Player.TakeDamage(config.trapDamage);
-                        line = $"Trap!  -{config.trapDamage} HP";
+                        line = Loc.T("msg.trap", config.trapDamage);
                         feedback = new FeedbackEvent { Kind = FeedbackKind.Trap, X = fx, Y = fy, Amount = config.trapDamage };
                         break;
                     case CellType.Heal:
                         int before = Player.Hp;
                         Player.Heal(config.healCellAmount);
-                        line = $"Heal cell  +{Player.Hp - before} HP";
+                        line = Loc.T("msg.healCell", Player.Hp - before);
                         feedback = new FeedbackEvent { Kind = FeedbackKind.Heal, X = fx, Y = fy, Amount = Player.Hp - before };
                         break;
                     default:
-                        line = "Nothing happened";
+                        line = Loc.T("msg.nothingHappened");
                         break;
                 }
 
@@ -801,7 +807,7 @@ namespace VoidConverter.Game
                         bool middle = Zone.IsCenter(fx, fy) && config.bossZoneCenterKills;
                         int damage = middle ? Player.Hp : config.bossZoneDamage;
                         Player.TakeDamage(damage);
-                        line += middle ? "\nDANGER ZONE CENTER!  Defeated at once" : $"\nDANGER ZONE!  -{damage} HP";
+                        line += "\n" + (middle ? Loc.T("msg.zoneCenter") : Loc.T("msg.zone", damage));
                         zoneFeedback = new FeedbackEvent { Kind = FeedbackKind.Trap, X = fx, Y = fy, Amount = damage };
                     }
                     Zone.MoveToward(fx, fy);
@@ -816,7 +822,7 @@ namespace VoidConverter.Game
             if (Player.IsDead)
             {
                 Phase = RunPhase.Defeated;
-                Message += $"\nDEFEATED in stage {Stage}/{StageCount}   (Space: restart)";
+                Message += "\n" + Loc.T("msg.defeatedIn", Stage, StageCount);
             }
             else if (PlacementsUsed >= GoalTurns || Grid.CountFresh() == 0 ||
                      (Grid.BlockCovered && !Hand.AnyPlaceable(Grid.CanPlaceAnywhere)))
@@ -838,11 +844,11 @@ namespace VoidConverter.Game
         {
             // Nothing moves on by itself: the round is over, and the button (Next Stage / Defeat Boss) goes on.
             RoundOver = true;
-            Message += IsBossStage
+            Message += "\n" + (IsBossStage
                 ? IsFinalBossRound
-                    ? $"\nThe boss is open! (${RoundGold} earned)  Press the button to defeat it."
-                    : $"\nThe boss is hurt! (${RoundGold} earned)  Press the button for the next phase."
-                : $"\nStage {Stage} complete (${RoundGold} earned)  Press the button to go on.";
+                    ? Loc.T("msg.bossOpen", RoundGold)
+                    : Loc.T("msg.bossHurt", RoundGold)
+                : Loc.T("msg.stageDone", Stage, RoundGold));
         }
 
         /// <summary>

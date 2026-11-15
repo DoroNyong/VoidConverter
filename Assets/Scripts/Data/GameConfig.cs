@@ -107,15 +107,16 @@ namespace VoidConverter.Data
         public EventDefinition ToDefinition(Func<string, ItemDefinition> findItem)
         {
             var list = new List<EventChoice>();
-            foreach (var c in choices)
+            for (int index = 0; index < choices.Count; index++)
             {
+                var c = choices[index];
                 var effects = new List<EventEffect>();
                 foreach (var e in c.effects)
                 {
                     var item = e.kind == EventEffectKind.GainItem ? findItem(e.itemId) : null;
                     effects.Add(new EventEffect(e.kind, e.amount, item, e.cellType));
                 }
-                list.Add(new EventChoice(c.label, effects));
+                list.Add(new EventChoice(c.label, effects, "event." + id + ".c" + index));
             }
             return new EventDefinition(id, title, description, list);
         }

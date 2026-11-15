@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using VoidConverter.Core;
 using VoidConverter.Game;
 
 namespace VoidConverter.View
@@ -265,7 +266,7 @@ namespace VoidConverter.View
                 var c = config.characters[i];
                 swatches[i].color = c.color;
                 cardNames[i].text = $"{i + 1}. {Loc.TOr("char." + c.displayName + ".name", c.displayName)}";
-                cardTexts[i].text = $"HP {c.maxHp}    ATK {c.attack}    MAG {c.magic}\n{Loc.TOr("char." + c.displayName + ".desc", c.description)}";
+                cardTexts[i].text = $"HP {c.maxHp}    {Loc.T("stat.atk")} {c.attack}    {Loc.T("stat.mag")} {c.magic}\n{Loc.TOr("char." + c.displayName + ".desc", c.description)}";
                 buttons.Add(cards[i]);
             }
             // With no character configured the run still starts with the plain Player block.

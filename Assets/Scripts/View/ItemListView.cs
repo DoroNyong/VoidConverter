@@ -27,7 +27,7 @@ namespace VoidConverter.View
             controller = FindFirstObjectByType<GameController>();
             cam = Camera.main;
 
-            title = CreateText("Title", "ITEMS", 64, 0.05f, TitleColor);
+            title = CreateText("Title", Loc.T("hud.items"), 64, 0.05f, TitleColor);
             list = CreateText("List", "", 48, 0.04f, ItemColor);
             hint = CreateText("Hint", "", 48, 0.03f, HintColor);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -82,10 +82,11 @@ namespace VoidConverter.View
 
         void Refresh()
         {
+            title.text = Loc.T("hud.items");
             var items = controller.Items;
             if (items.Count == 0)
             {
-                list.text = "none";
+                list.text = Loc.T("hud.none");
                 list.color = EmptyColor;
             }
             else

@@ -1,3 +1,4 @@
+using VoidConverter.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidConverter.Data;
@@ -37,7 +38,7 @@ namespace VoidConverter.View
             root.transform.SetParent(transform, false);
             body = SpriteUtil.AddSquare(root.transform, "Body", center, 1f, WaitingColor, 5);
             body.transform.localScale = new Vector3(Size.x, Size.y, 1f);
-            title = TextUtil.AddText(root.transform, "Title", center + new Vector2(0f, 0.5f), "BOSS", 64, 0.08f, Color.white, 10);
+            title = TextUtil.AddText(root.transform, "Title", center + new Vector2(0f, 0.5f), Loc.T("boss.title"), 64, 0.08f, Color.white, 10);
             status = TextUtil.AddText(root.transform, "Status", center + new Vector2(0f, -0.5f), "", 48, 0.04f, Color.white, 10);
 
             controller.Changed += Refresh;
@@ -68,12 +69,13 @@ namespace VoidConverter.View
 
             bool ready = controller.BossReady;
             body.color = ready ? ReadyColor : WaitingColor;
+            title.text = Loc.T("boss.title");
             status.text = ready
-                ? (controller.IsFinalBossRound ? "Click to\ndefeat!" : "Click:\nnext phase")
+                ? Loc.T(controller.IsFinalBossRound ? "boss.clickDefeat" : "boss.clickNext")
                 : controller.PickOneRule
                     ? (controller.BossRounds > 1
-                        ? $"Phase {controller.BossRound}/{controller.BossRounds}\n{controller.PlacementsUsed}/{controller.MinPlacements}"
-                        : $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}")
+                        ? Loc.T("boss.phase", controller.BossRound, controller.BossRounds, controller.PlacementsUsed, controller.MinPlacements)
+                        : Loc.T("boss.place", controller.PlacementsUsed, controller.MinPlacements))
                 : controller.ClearRule
                     ? $"Monsters\nleft {controller.MonstersLeft}"
                     : $"Hold out\n{Mathf.Min(controller.PlacementsUsed, controller.BossHoldTarget)}/{controller.BossHoldTarget}";

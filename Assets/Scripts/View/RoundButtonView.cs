@@ -1,3 +1,4 @@
+using VoidConverter.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidConverter.Data;
@@ -83,31 +84,33 @@ namespace VoidConverter.View
             rerollLabel.gameObject.SetActive(showReroll);
             if (showReroll)
             {
-                rerollLabel.text = $"Reroll (E)\n{controller.RerollsLeft} left";
+                rerollLabel.text = Loc.T("btn.reroll", controller.RerollsLeft);
                 rerollBackground.color = controller.RerollsLeft > 0 ? EnabledColor : DisabledColor;
             }
 
             if (controller.Phase == RunPhase.Event && !controller.EventResolved)
             {
-                label.text = "Choose\none";
+                label.text = Loc.T("btn.chooseOne");
                 background.color = DisabledColor;
             }
             else if (controller.Phase == RunPhase.Event || controller.Phase == RunPhase.Shop)
             {
-                label.text = "Continue";
+                label.text = Loc.T("btn.continue");
                 background.color = EnabledColor;
             }
             else if (controller.Phase != RunPhase.Playing)
             {
-                label.text = "Restart";
+                label.text = Loc.T("btn.restart");
                 background.color = RestartColor;
             }
             else if (controller.PickOneRule)
             {
                 // Reaching the goal unlocks the button: cash out now, or keep placing for more.
                 bool reached = controller.IsBossStage ? controller.BossReady : controller.CanEndRound;
-                string waiting = $"Place\n{controller.PlacementsUsed}/{controller.MinPlacements}";
-                string go = controller.IsBossStage ? (controller.IsFinalBossRound ? "Defeat\nBoss" : "Next\nPhase") : controller.RoundOver ? "Next\nStage" : "Leave";
+                string waiting = Loc.T("btn.place", controller.PlacementsUsed, controller.MinPlacements);
+                string go = controller.IsBossStage
+                    ? Loc.T(controller.IsFinalBossRound ? "btn.defeatBoss" : "btn.nextPhase")
+                    : Loc.T(controller.RoundOver ? "btn.nextStage" : "btn.leave");
                 label.text = reached ? go : waiting;
                 background.color = reached ? EnabledColor : DisabledColor;
             }

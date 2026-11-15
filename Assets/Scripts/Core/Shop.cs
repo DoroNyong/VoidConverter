@@ -16,9 +16,10 @@ namespace VoidConverter.Core
     /// <summary>One product on the shop shelf: either an item to carry, or a heal. Each product can be bought once per visit.</summary>
     public class ShopOffer
     {
-        public string Name { get; }
-        /// <summary>Short effect text such as "ATK +1" or "HP +10".</summary>
-        public string Summary { get; }
+        /// <summary>The item's name, or "Heal", in the current language.</summary>
+        public string Name => Item != null ? Item.Name : Loc.T("shop.heal");
+        /// <summary>Short effect text such as "ATK +1" or "HP +10", in the current language.</summary>
+        public string Summary => Item != null ? Item.Summary : Loc.T("eff.heal", HealAmount);
         public int Price { get; }
         /// <summary>The item given on purchase, or null for a heal offer.</summary>
         public ItemDefinition Item { get; }
@@ -26,20 +27,16 @@ namespace VoidConverter.Core
         public int HealAmount { get; }
         public bool Sold { get; set; }
 
-        ShopOffer(string name, string summary, int price, ItemDefinition item, int healAmount)
+        ShopOffer(int price, ItemDefinition item, int healAmount)
         {
-            Name = name;
-            Summary = summary;
             Price = price;
             Item = item;
             HealAmount = healAmount;
         }
 
-        public static ShopOffer ForItem(ItemDefinition item, int price) =>
-            new ShopOffer(item.Name, item.Summary, price, item, 0);
+        public static ShopOffer ForItem(ItemDefinition item, int price) => new ShopOffer(price, item, 0);
 
-        public static ShopOffer ForHeal(int amount, int price) =>
-            new ShopOffer("Heal", $"HP +{amount}", price, null, amount);
+        public static ShopOffer ForHeal(int amount, int price) => new ShopOffer(price, null, amount);
     }
 
     /// <summary>The buying rules. There is no selling: items only leave the player through events and boss patterns.</summary>

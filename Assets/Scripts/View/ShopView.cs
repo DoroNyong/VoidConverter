@@ -85,7 +85,7 @@ namespace VoidConverter.View
             if (!open) return;
 
             var p = controller.Player;
-            header.text = $"SHOP    Gold {p.Gold}    HP {p.Hp}/{p.MaxHp}";
+            header.text = Loc.T("shop.header", p.Gold, p.Hp, p.MaxHp);
             message.text = controller.Message;
 
             foreach (Transform child in cardsRoot.transform) Destroy(child.gameObject);
@@ -106,7 +106,7 @@ namespace VoidConverter.View
                     48, 0.04f, offer.Sold ? SoldColor : new Color(0.7f, 1f, 0.75f), 70);
 
                 bool affordable = p.Gold >= offer.Price;
-                string priceText = offer.Sold ? "SOLD" : $"{offer.Price} G";
+                string priceText = offer.Sold ? Loc.T("shop.sold") : $"{offer.Price} G";
                 var priceColor = offer.Sold ? SoldColor : affordable ? PriceColor : PriceDimColor;
                 TextUtil.AddText(cardsRoot.transform, "Price", c + new Vector2(0f, -0.8f), priceText, 48, 0.045f, priceColor, 70);
             }

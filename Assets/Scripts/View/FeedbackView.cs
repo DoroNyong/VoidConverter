@@ -1,3 +1,4 @@
+using VoidConverter.Core;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -161,7 +162,7 @@ namespace VoidConverter.View
                     break;
                 case FeedbackKind.Heal:
                     color = HealTextColor;
-                    text = e.Amount > 0 ? "+" + e.Amount + " HP" : "HP full";
+                    text = e.Amount > 0 ? "+" + e.Amount + " HP" : Loc.T("fb.hpFull");
                     clip = healClip;
                     // A soft green flash over the whole screen.
                     if (e.Amount > 0) StartFlash(HealFlashColor, 0.16f, 0.5f);

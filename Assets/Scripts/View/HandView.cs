@@ -292,25 +292,25 @@ namespace VoidConverter.View
 
             if (odds.Candidates == 0)
             {
-                ghostInfo.text = "Nothing under\nthis block";
+                ghostInfo.text = Loc.T("odds.nothing");
                 ghostInfo.color = new Color(1f, 1f, 1f, 0.6f);
             }
             else
             {
-                var lines = new List<string> { $"1 of {odds.Candidates} cells fires" };
-                if (odds.Golds > 0) lines.Add($"Gold {Percent(odds.GoldChance)}%  (+${config.goldCellReward})");
+                var lines = new List<string> { Loc.T("odds.fires", odds.Candidates) };
+                if (odds.Golds > 0) lines.Add(Loc.T("odds.gold", Percent(odds.GoldChance), config.goldCellReward));
                 if (odds.Monsters > 0)
                 {
                     // With one fixed attack every fight is certain: say how many of the covered monsters are beaten.
                     bool certain = controller.Player.AttackMin == controller.Player.AttackMax;
-                    string outcome = certain ? $"beat {odds.MonsterWins} of {odds.Monsters}" : $"win {Percent(odds.MonsterWinChance)}%";
-                    lines.Add($"Monster {Percent(odds.MonsterChance)}%  ({outcome})");
+                    string outcome = certain ? Loc.T("odds.beat", odds.MonsterWins, odds.Monsters) : Loc.T("odds.win", Percent(odds.MonsterWinChance));
+                    lines.Add(Loc.T("odds.monster", Percent(odds.MonsterChance), outcome));
                 }
-                if (odds.Traps > 0) lines.Add($"Trap {Percent(odds.TrapChance)}%  (-{config.trapDamage} HP)");
-                if (odds.Heals > 0) lines.Add($"Heal {Percent(odds.HealChance)}%  (+{config.healCellAmount} HP)");
-                if (deathChance > 0f) lines.Add($"DEFEAT {Percent(deathChance)}%");
-                if (zoneHitChance > 0f) lines.Add($"Zone hit {Percent(zoneHitChance)}%  (-{config.bossZoneDamage} HP)");
-                lines.Add($"Avg ${odds.ExpectedGold:0.0}   HP {(odds.ExpectedHeal - odds.ExpectedDamage):+0.0;-0.0;0.0}");
+                if (odds.Traps > 0) lines.Add(Loc.T("odds.trap", Percent(odds.TrapChance), config.trapDamage));
+                if (odds.Heals > 0) lines.Add(Loc.T("odds.heal", Percent(odds.HealChance), config.healCellAmount));
+                if (deathChance > 0f) lines.Add(Loc.T("odds.defeat", Percent(deathChance)));
+                if (zoneHitChance > 0f) lines.Add(Loc.T("odds.zone", Percent(zoneHitChance), config.bossZoneDamage));
+                lines.Add(Loc.T("odds.avg", odds.ExpectedGold.ToString("0.0"), (odds.ExpectedHeal - odds.ExpectedDamage).ToString("+0.0;-0.0;0.0")));
                 ghostInfo.text = string.Join("\n", lines);
                 // The more gold on average, the greener.
                 ghostInfo.color = GridView.ChanceColor(Mathf.Clamp01(odds.ExpectedGold / 2f));

@@ -53,11 +53,12 @@ namespace VoidConverter.View
         void Refresh()
         {
             var p = controller.Player;
-            stats.text = $"Stage {controller.Stage}/{controller.StageCount} {controller.CurrentStage}    HP {p.Hp}/{p.MaxHp}    ATK {(p.AttackMin == p.AttackMax ? p.AttackMin.ToString() : p.AttackMin + "-" + p.AttackMax)}    MAG {p.Magic}" +
-                         $"    Gold {p.Gold}    ";
+            stats.text = Loc.T("hud.stage", controller.Stage, controller.StageCount, Loc.T("stage." + controller.CurrentStage)) +
+                         $"    HP {p.Hp}/{p.MaxHp}    {Loc.T("stat.atk")} {(p.AttackMin == p.AttackMax ? p.AttackMin.ToString() : p.AttackMin + "-" + p.AttackMax)}    {Loc.T("stat.mag")} {p.Magic}" +
+                         $"    {Loc.T("stat.gold")} {p.Gold}    ";
             if (controller.PickOneRule && controller.Phase == RunPhase.Playing)
             {
-                stats.text += $"Block {controller.PlacementsUsed}/{controller.GoalTurns}    Leave from {controller.MinPlacements}    Rerolls {controller.RerollsLeft} (E)";
+                stats.text += Loc.T("hud.block", controller.PlacementsUsed, controller.GoalTurns, controller.MinPlacements, controller.RerollsLeft);
             }
             else if (controller.ClearRule && controller.Phase == RunPhase.Playing)
             {
@@ -66,7 +67,7 @@ namespace VoidConverter.View
             }
             else
             {
-                stats.text += $"Blocks {controller.PlacementsUsed}/{controller.MaxPlacements}";
+                stats.text += Loc.T("hud.blocks", controller.PlacementsUsed, controller.MaxPlacements);
             }
             stats.color = p.IsDead ? DeadColor : StatsColor;
 
@@ -84,7 +85,7 @@ namespace VoidConverter.View
             banner.SetActive(showBanner);
             if (!showBanner) return;
 
-            bannerText.text = "EVENT\n(no events)";
+            bannerText.text = Loc.T("hud.noEvents");
             bannerText.color = MessageColor;
         }
     }

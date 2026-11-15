@@ -1,3 +1,4 @@
+using VoidConverter.Core;
 using System.Collections.Generic;
 using UnityEngine;
 using VoidConverter.Data;
@@ -102,7 +103,7 @@ namespace VoidConverter.View
                 var back = SpriteUtil.AddSquare(tag.transform, "Pill", Vector2.zero, 1f, danger >= 2 ? DeathTagColor : DamageTagColor, BadgeOrder);
                 back.transform.localScale = new Vector3(config.cellSize * 0.66f, config.cellSize * 0.27f, 1f);
                 // Placeholder text: the broken-heart picture replaces it once the art exists.
-                string label = danger == 2 ? "DEAD" : danger == 3 ? "DEAD?" : "DANGER";
+                string label = Loc.T(danger == 2 ? "tag.dead" : danger == 3 ? "tag.deadMaybe" : "tag.danger");
                 TextUtil.AddText(tag.transform, "Label", Vector2.zero, label, 64, 0.04f, Color.white, BadgeTextOrder);
                 tag.transform.localPosition = new Vector3(0f, config.cellSize * 0.3f, 0f);
             }

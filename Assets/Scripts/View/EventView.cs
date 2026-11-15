@@ -1,3 +1,4 @@
+using VoidConverter.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidConverter.Data;
@@ -90,7 +91,7 @@ namespace VoidConverter.View
             description.text = e.Description;
             message.text = controller.Message;
             var p = controller.Player;
-            status.text = $"Gold {p.Gold}    HP {p.Hp}/{p.MaxHp}";
+            status.text = Loc.T("event.status", p.Gold, p.Hp, p.MaxHp);
 
             foreach (Transform child in choicesRoot.transform) Destroy(child.gameObject);
 
