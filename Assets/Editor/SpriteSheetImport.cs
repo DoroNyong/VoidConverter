@@ -7,7 +7,7 @@ using VoidConverter.Data;
 namespace VoidConverter.EditorTools
 {
     /// <summary>
-    /// Pictures under Assets/Sprites are pixel art: point filter, no compression. A picture that is wider than it is
+    /// Pictures under Assets/Resources/Sprites are pixel art: point filter, no compression. A picture that is wider than it is
     /// tall and whose width is a whole number of its height is a sheet of square frames (24x24, 32x32 ...) and is cut
     /// into one sprite per frame with the pivot at the bottom middle, so a creature keeps standing on the same spot
     /// while its frames change. Any other picture stays one sprite. After every import the SpriteLibrary the game reads
@@ -15,7 +15,7 @@ namespace VoidConverter.EditorTools
     /// </summary>
     public class SpriteSheetImport : AssetPostprocessor
     {
-        const string Root = "Assets/Sprites";
+        const string Root = "Assets/Resources/Sprites";
         const string LibraryPath = "Assets/Resources/SpriteLibrary.asset";
 
         void OnPreprocessTexture()
@@ -35,6 +35,15 @@ namespace VoidConverter.EditorTools
             if (!sheet)
             {
                 importer.spriteImportMode = SpriteImportMode.Single;
+                // Sprites/UI are 9-slice boxes (buttons, panels): the 4 pixel rim stays fixed when the box is stretched.
+                if (assetPath.StartsWith(Root + "/UI/"))
+                {
+                    importer.spriteBorder = new Vector4(4f, 4f, 4f, 4f);
+                    var settings = new TextureImporterSettings();
+                    importer.ReadTextureSettings(settings);
+                    settings.spriteMeshType = SpriteMeshType.FullRect;
+                    importer.SetTextureSettings(settings);
+                }
                 return;
             }
 

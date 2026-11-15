@@ -73,8 +73,7 @@ namespace VoidConverter.View
             var b = new Button { Center = center, Size = size, Normal = color, Click = click };
             b.Root = new GameObject(name);
             b.Root.transform.SetParent(parent, false);
-            b.Background = SpriteUtil.AddSquare(b.Root.transform, "Background", center, 1f, color, order);
-            b.Background.transform.localScale = new Vector3(size.x, size.y, 1f);
+            b.Background = SpriteUtil.AddBox(b.Root.transform, "Background", center, size.x, size.y, color, order);
             b.Label = TextUtil.AddText(b.Root.transform, "Label", center, "", 64, textSize, Color.white, order + 10);
             buttons.Add(b);
             return b;
@@ -87,6 +86,7 @@ namespace VoidConverter.View
 
         void Start()
         {
+            instance = this;
             controller = FindFirstObjectByType<GameController>();
             cam = Camera.main;
             GameSettings.ApplySavedDisplay();
@@ -97,8 +97,7 @@ namespace VoidConverter.View
             panel = new GameObject("Panel");
             panel.transform.SetParent(transform, false);
             SpriteUtil.AddSquare(panel.transform, "Shade", Vector2.zero, 1f, ShadeColor, ShadeOrder).gameObject.AddComponent<CameraFill>();
-            var back = SpriteUtil.AddSquare(panel.transform, "Panel", new Vector2(0f, 0.2f), 1f, PanelColor, PanelOrder);
-            back.transform.localScale = new Vector3(9.6f, 8.2f, 1f);
+            SpriteUtil.AddBox(panel.transform, "Panel", new Vector2(0f, 0.2f), 9.6f, 8.2f, PanelColor, PanelOrder);
 
             heading = MakeText("Heading", new Vector2(0f, 3.7f), 0.1f, HeadingColor);
 
@@ -157,6 +156,14 @@ namespace VoidConverter.View
         {
             if (controller.SettingsOpen) Close();
             else Open();
+        }
+
+        static SettingsView instance;
+
+        /// <summary>Opens the settings panel (the title screen's Settings button).</summary>
+        public static void OpenPanel()
+        {
+            if (instance != null && !instance.controller.SettingsOpen) instance.Open();
         }
 
         void Open()
@@ -231,6 +238,8 @@ namespace VoidConverter.View
             // The button is drawn around the root's position, and its hit area follows.
             menuButton.Root.transform.position = new Vector3(corner.x, corner.y, 0f);
             menuButton.Center = corner;
+            // The title screen has its own Settings button.
+            menuButton.Root.SetActive(!(controller.OnTitle && controller.Step == GameController.TitleStep.Title));
 
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)

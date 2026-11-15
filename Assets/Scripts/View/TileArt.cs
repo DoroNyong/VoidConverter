@@ -78,11 +78,12 @@ namespace VoidConverter.View
             return true;
         }
 
-        // Monster sheets (Assets/Sprites/Monsters, found by file name through the SpriteLibrary): square frames with the
-        // pivot at the bottom middle. A frame of 24 pixels is this wide on the tile, so every monster has the same pixel
-        // size and a bigger frame (the Brute, 32) makes a bigger monster.
+        // Monster sheets (Assets/Resources/Sprites/Monsters, found by file name through the SpriteLibrary): square frames with the
+        // pivot at the bottom middle. A frame of MonsterBasePixels is this wide on the tile, so every monster has the same
+        // pixel size and a bigger frame makes a bigger monster. Now 16: the temporary Kenney Tiny Dungeon sprites (the
+        // earlier AI sheets, 24px, are kept in Assets/Art/AI_Monsters; use 24 again if they come back).
         const float MonsterWidthPer24Px = 0.5f;
-        const float MonsterBasePixels = 24f;
+        const float MonsterBasePixels = 16f;
         static SpriteLibrary library;
         static bool libraryLoaded;
 

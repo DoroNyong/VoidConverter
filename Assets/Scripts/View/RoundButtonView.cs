@@ -42,13 +42,11 @@ namespace VoidConverter.View
             center = new Vector2(x, y);
 
             // Above the full-screen event and shop backdrops, so Continue stays visible there.
-            background = SpriteUtil.AddSquare(transform, "Button", center, 1f, EnabledColor, 90);
-            background.transform.localScale = new Vector3(Size.x, Size.y, 1f);
+            background = SpriteUtil.AddBox(transform, "Button", center, Size.x, Size.y, EnabledColor, 90);
             label = TextUtil.AddText(transform, "Label", center, "", 64, 0.04f, Color.white, 100);
 
             rerollCenter = new Vector2(-x, y);
-            rerollBackground = SpriteUtil.AddSquare(transform, "Reroll Button", rerollCenter, 1f, EnabledColor, 90);
-            rerollBackground.transform.localScale = new Vector3(Size.x, Size.y, 1f);
+            rerollBackground = SpriteUtil.AddBox(transform, "Reroll Button", rerollCenter, Size.x, Size.y, EnabledColor, 90);
             rerollLabel = TextUtil.AddText(transform, "Reroll Label", rerollCenter, "", 64, 0.04f, Color.white, 100);
 
             controller.Changed += Refresh;

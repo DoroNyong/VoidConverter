@@ -5,7 +5,7 @@ using UnityEngine;
 namespace VoidConverter.Data
 {
     /// <summary>
-    /// The pictures under Assets/Sprites, found by file name at run time (a sheet's frames in order, a single picture as
+    /// The pictures under Assets/Resources/Sprites, found by file name at run time (a sheet's frames in order, a single picture as
     /// one frame). It is built by the editor (see SpriteSheetImport) and kept at Resources/SpriteLibrary, so a picture
     /// can stay in its own folder and still be used by the game.
     /// </summary>

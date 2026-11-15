@@ -28,13 +28,28 @@
 
 가공에는 Python의 Pillow와 numpy를 썼다(작업용 도구이고 게임에 들어가지 않는다).
 
+### 임시 에셋 (2026-11-15, 나중에 직접 만든 그림으로 교체 예정)
+후보정 시간을 아끼려고 Kenney의 CC0 팩을 임시로 넣었다. **교체 예정이며 최종 그림이 아니다.** CC0이라 표기 의무는 없지만 출처를 남긴다.
+
+| 팩 | 출처 | 라이선스 | 쓰는 곳 |
+|---|---|---|---|
+| Tiny Dungeon 1.0 (Kenney) | https://kenney.nl/assets/tiny-dungeon, 2026-11-15에 내려받음 | CC0 1.0 (`Assets/Resources/Sprites/Monsters/Kenney-TinyDungeon-License.txt`) | 몬스터 4종 (`Monsters/*_idle.png`: slime=타일 108, beast=110, wisp=121, brute=109), 골드 칸(`Icons/gold.png`=타일 89 상자), 회복 칸(`Icons/heal.png`=타일 115 물약) |
+| Pixel UI Pack 1.0 (Kenney) | https://kenney.nl/assets/pixel-ui-pack, 2026-11-15에 내려받음 | CC0 1.0 (`Assets/Resources/Sprites/UI/Kenney-PixelUIPack-License.txt`) | 버튼과 패널 9-slice (`Sprites/UI/box.png` = 9-Slice/Colored/grey.png) |
+
+- 몬스터는 16x16 한 장을 그대로 쓰고, 2프레임 시트로 만들었다(두 번째 프레임은 1픽셀 위로 올린 것). 그 외 후보정은 없다.
+- 이전 AI 그림은 `Assets/Art/AI_Monsters`(몬스터 4종 시트)와 `Assets/Art/AI_Icons`(골드, 회복)에 보관했다. 게임에는 들어가지 않는다. 함정 아이콘(`Icons/trap.png`)과 마법/물리 몬스터 아이콘은 위 AI 그림을 그대로 쓴다.
+- 교체 방법: 같은 파일 이름의 시트를 `Assets/Resources/Sprites/Monsters`에 넣으면 된다. 프레임 크기가 16이 아니면 `TileArt.MonsterBasePixels`를 맞춘다.
+
 ## 2. 폰트
 
 | 폰트 | 출처 | 라이선스 |
 |---|---|---|
-| Unity 기본 제공 폰트 (`LegacyRuntime.ttf`) | Unity 엔진에 포함 | Unity 사용 조건을 따름: **확인 필요** |
+| **Galmuri11** (`Assets/Resources/Fonts/Galmuri11.ttf`) | 갈무리 v2.40.4 (Lee Minseo, quiple). https://github.com/quiple/galmuri 릴리스 `Galmuri-v2.40.4.zip`에서 2026-11-15에 내려받음 | SIL Open Font License 1.1. 저작권 문구와 라이선스 전문은 `Assets/Resources/Fonts/Galmuri-LICENSE.txt`로 같이 둠. 직접 읽어 확인함: 번들, 재배포, 게임에 포함해 판매 가능. 폰트 단독 판매와 개조본에 같은 이름 사용은 불가 |
+| Unity 기본 제공 폰트 (`LegacyRuntime.ttf`) | Unity 엔진에 포함 | Galmuri 파일이 없을 때만 쓰는 대체 폰트. Unity 사용 조건을 따름: **확인 필요** |
 
-글자는 영어(ASCII)만 쓴다. 외부에서 내려받은 폰트는 없다.
+- 영어, 한국어 모두 Galmuri11을 쓴다(한글, 영문, 일본어, 한자 포함 도트 폰트). 도트가 선명하도록 글자 크기를 11의 배수로 맞춘다(`TextUtil.cs`).
+- 받은 압축 파일에는 크기별(7, 9, 11, 14)과 모노, 볼드, 비트맵 파일이 있었고 지금은 Galmuri11.ttf만 넣었다. 다른 크기는 필요할 때 같은 릴리스에서 추가한다.
+- 제출물에 LICENSE.txt를 같이 둔다(OFL 조건 2).
 
 ## 3. 소리
 

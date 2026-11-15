@@ -20,6 +20,8 @@ namespace VoidConverter.Core
             // Title, tutorial, character select, end screen
             { "title.start", "Start" },
             { "title.howto", "How to Play" },
+            { "title.settings", "Settings" },
+            { "title.quit", "Quit" },
             { "title.tagline", "Place a block.\nOne covered cell fires." },
             { "title.hint", "or press Space" },
 
@@ -179,6 +181,8 @@ namespace VoidConverter.Core
         {
             { "title.start", "시작" },
             { "title.howto", "게임 방법" },
+            { "title.settings", "환경 설정" },
+            { "title.quit", "게임 종료" },
             { "title.tagline", "블록을 놓으세요.\n덮은 칸 중 하나만 터집니다." },
             { "title.hint", "또는 스페이스 키" },
 

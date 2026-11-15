@@ -60,6 +60,10 @@ namespace VoidConverter.View
 
         Button mainButton;
         Button sideButton;
+        Button settingsButton;
+        Button quitButton;
+        // Faint diamonds behind the title, until there is a real background picture.
+        GameObject titleDecor;
         Button backButton;
         Button skipButton;
         Button selectBackButton;
@@ -81,8 +85,7 @@ namespace VoidConverter.View
             var b = new Button { Center = center, Size = size, Normal = color, Click = click };
             b.Root = new GameObject(name);
             b.Root.transform.SetParent(root.transform, false);
-            b.Background = SpriteUtil.AddSquare(b.Root.transform, "Background", center, 1f, color, ButtonOrder);
-            b.Background.transform.localScale = new Vector3(size.x, size.y, 1f);
+            b.Background = SpriteUtil.AddBox(b.Root.transform, "Background", center, size.x, size.y, color, ButtonOrder);
             b.Label = TextUtil.AddText(b.Root.transform, "Label", center, "", 64, textSize, Color.white, TextOrder);
             return b;
         }
@@ -103,6 +106,15 @@ namespace VoidConverter.View
 
             mainButton = MakeButton("Main Button", new Vector2(0f, -1.9f), new Vector2(3.4f, 1.1f), ButtonColor, 0.06f, OnMainButton);
             sideButton = MakeButton("Side Button", new Vector2(0f, -3.2f), new Vector2(3.4f, 0.8f), SideButtonColor, 0.05f, OnSideButton);
+            settingsButton = MakeButton("Settings Button", Vector2.zero, new Vector2(3.4f, 0.9f), SideButtonColor, 0.05f, SettingsView.OpenPanel);
+            quitButton = MakeButton("Quit Button", Vector2.zero, new Vector2(3.4f, 0.9f), SideButtonColor, 0.05f, QuitGame);
+
+            titleDecor = new GameObject("Title Decor");
+            titleDecor.transform.SetParent(root.transform, false);
+            var decor = new[] { new Vector3(-6.2f, 2.6f, 2.4f), new Vector3(6.4f, 1.2f, 3.2f), new Vector3(-5.0f, -2.8f, 1.8f), new Vector3(5.6f, -3.4f, 2.2f), new Vector3(-7.4f, -0.4f, 1.2f) };
+            foreach (var d in decor)
+                SpriteUtil.AddDiamond(titleDecor.transform, "Diamond", new Vector2(d.x, d.y), d.z, d.z * 0.5f, new Color(0.8f, 0.65f, 1f, 0.07f), BackdropOrder + 1);
+
             // In the tutorial the Back button sits left of Next; on character select it sits under the cards (see ShowSelectStep).
             backButton = MakeButton("Back Button", new Vector2(-3.4f, -2.2f), new Vector2(2.2f, 0.9f), SideButtonColor, 0.05f, controller.PreviousTutorialPage);
             selectBackButton = MakeButton("Select Back Button", new Vector2(0f, -2.5f), new Vector2(2.2f, 0.9f), SideButtonColor, 0.05f, controller.GoBack);
@@ -140,6 +152,18 @@ namespace VoidConverter.View
             }
             else controller.PressMainButton();
         }
+
+        static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        // A web page cannot be quit from the game.
+        static bool CanQuit => Application.platform != RuntimePlatform.WebGLPlayer;
 
         void OnSideButton()
         {
@@ -181,7 +205,8 @@ namespace VoidConverter.View
         void Show(params Button[] buttons)
         {
             shown.Clear();
-            foreach (var b in new[] { mainButton, sideButton, backButton, selectBackButton, skipButton, cards[0], cards[1] }) b.Root.SetActive(false);
+            foreach (var b in new[] { mainButton, sideButton, settingsButton, quitButton, backButton, selectBackButton, skipButton, cards[0], cards[1] }) b.Root.SetActive(false);
+            titleDecor.SetActive(false);
             foreach (var b in buttons)
             {
                 b.Root.SetActive(true);
@@ -201,6 +226,9 @@ namespace VoidConverter.View
             }
 
             heading.transform.localPosition = new Vector2(0f, 1.9f);
+            // The title step moves these; every other screen uses them where they started.
+            Place(mainButton, new Vector2(0f, -1.9f), new Vector2(3.4f, 1.1f));
+            Place(sideButton, new Vector2(0f, -3.2f), new Vector2(3.4f, 0.8f));
             if (controller.OnTitle)
             {
                 switch (controller.Step)
@@ -215,6 +243,16 @@ namespace VoidConverter.View
             ShowEndStep(phase == RunPhase.Cleared);
         }
 
+        void Place(Button b, Vector2 center, Vector2 size)
+        {
+            b.Center = center;
+            b.Size = size;
+            b.Background.transform.localPosition = center;
+            if (b.Background.drawMode == SpriteDrawMode.Sliced) b.Background.size = size;
+            else b.Background.transform.localScale = new Vector3(size.x, size.y, 1f);
+            b.Label.transform.localPosition = center;
+        }
+
         void ShowTitleStep()
         {
             heading.text = "VOID\nCONVERTER";
@@ -223,9 +261,26 @@ namespace VoidConverter.View
             details.transform.localPosition = new Vector2(0f, 0.1f);
             mainButton.Label.text = Loc.T("title.start");
             sideButton.Label.text = Loc.T("title.howto");
+            settingsButton.Label.text = Loc.T("title.settings");
+            quitButton.Label.text = Loc.T("title.quit");
             hint.text = Loc.T("title.hint");
-            hint.transform.localPosition = new Vector2(0f, -4.0f);
-            Show(mainButton, sideButton);
+            hint.transform.localPosition = new Vector2(0f, -5.85f);
+
+            // Four equal buttons, one under the other.
+            var size = new Vector2(3.4f, 0.9f);
+            const float top = -1.5f, gap = 1.1f;
+            Place(mainButton, new Vector2(0f, top), size);
+            Place(sideButton, new Vector2(0f, top - gap), size);
+            Place(settingsButton, new Vector2(0f, top - gap * 2f), size);
+            Place(quitButton, new Vector2(0f, top - gap * 3f), size);
+            if (CanQuit) Show(mainButton, sideButton, settingsButton, quitButton);
+            else
+            {
+                // No Quit in a web build: the three buttons stay centered in the same block.
+                Place(settingsButton, new Vector2(0f, top - gap * 2f), size);
+                Show(mainButton, sideButton, settingsButton);
+            }
+            titleDecor.SetActive(true);
         }
 
         void ShowTutorialStep()

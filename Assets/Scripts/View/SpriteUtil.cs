@@ -133,6 +133,37 @@ namespace VoidConverter.View
             return sr;
         }
 
+        static Sprite box;
+        static bool boxLoaded;
+
+        /// <summary>
+        /// A button or panel body that is <paramref name="width"/> x <paramref name="height"/> world units, tinted via
+        /// SpriteRenderer.color. Uses the 9-slice picture Resources/Sprites/UI/box (temporary Kenney Pixel UI Pack art);
+        /// without it, it is the plain colored square it used to be.
+        /// </summary>
+        public static SpriteRenderer AddBox(Transform parent, string name, Vector2 localPos, float width, float height, Color color, int order)
+        {
+            var sr = AddSquare(parent, name, localPos, 1f, color, order);
+            if (!boxLoaded)
+            {
+                boxLoaded = true;
+                box = Resources.Load<Sprite>("Sprites/UI/box");
+            }
+            if (box != null)
+            {
+                sr.sprite = box;
+                sr.drawMode = SpriteDrawMode.Sliced;
+                sr.size = new Vector2(width, height);
+                // Switching the sprite and draw mode changes the scale (to the new sprite's size); the size above is what counts.
+                sr.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                sr.transform.localScale = new Vector3(width, height, 1f);
+            }
+            return sr;
+        }
+
         public static SpriteRenderer AddSquare(Transform parent, string name, Vector2 localPos, float size, Color color, int order)
         {
             var go = new GameObject(name);
