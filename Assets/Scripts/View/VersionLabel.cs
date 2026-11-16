@@ -3,7 +3,7 @@ using UnityEngine;
 namespace VoidConverter.View
 {
     /// <summary>
-    /// A small version label in the bottom-right corner of the screen (the number from Player Settings > Version, which
+    /// A small version label in the bottom-left corner of the screen (the bottom right is the next-stage button) (the number from Player Settings > Version, which
     /// tools/package_unity.bat sets). Lets a tester say which build they are playing. Creates itself with the first scene.
     /// </summary>
     public class VersionLabel : MonoBehaviour
@@ -23,8 +23,8 @@ namespace VoidConverter.View
         void Start()
         {
             label = TextUtil.AddText(transform, "Text", Vector2.zero, "v" + Application.version, 48, 0.03f, LabelColor, 5);
-            label.anchor = TextAnchor.LowerRight;
-            label.alignment = TextAlignment.Right;
+            label.anchor = TextAnchor.LowerLeft;
+            label.alignment = TextAlignment.Left;
         }
 
         void LateUpdate()
@@ -34,7 +34,7 @@ namespace VoidConverter.View
             float halfHeight = cam.orthographicSize;
             float halfWidth = halfHeight * cam.aspect;
             var c = cam.transform.position;
-            label.transform.position = new Vector3(c.x + halfWidth - Margin, c.y - halfHeight + Margin, 0f);
+            label.transform.position = new Vector3(c.x - halfWidth + Margin, c.y - halfHeight + Margin, 0f);
         }
     }
 }

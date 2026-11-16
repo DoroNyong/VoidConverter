@@ -276,8 +276,8 @@ namespace VoidConverter.Data
         public int pickMinPlacements = 4;
         [Tooltip("Pick-One: blocks that must be placed in the Boss round before it can be defeated.")]
         public int bossMinPlacements = 6;
-        [Tooltip("Pick-One: blocks that may be placed in one round at most (the round ends by itself after this many).")]
-        public int goalTurns = 7;
+        [Tooltip("Pick-One: blocks that may be placed in one round at most (the round ends by itself after this many). 0 = no limit: the round ends when nothing is left to fire or no block fits (2026-11-16 decision: no maximum).")]
+        public int goalTurns = 0;
         [Tooltip("Pick-One: HP lost when a trap fires.")]
         public int trapDamage = 1;
         [Tooltip("Pick-One: how many times per round the player may throw away the block in hand and draw a new one.")]

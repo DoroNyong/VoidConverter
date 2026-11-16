@@ -37,13 +37,18 @@ namespace VoidConverter.View
         const float IconLabelDrop = 0.28f;
         const float IconLabelScale = 0.8f;
 
-        const float CameraMargin = 0.8f;
-        const float HudSpace = 2.1f;
-        const float HandGapBelowGrid = 0.6f;
 
         GameController controller;
         GameConfig config;
         float fittedAspect;
+
+        void Awake()
+        {
+            // The board sits left of the right-hand column and above the bottom row (HudLayout). Every cell position
+            // goes through this transform (CellToWorld), so moving it moves the whole board. Set in Awake so the other
+            // views see the final position in their Start.
+            transform.position = HudLayout.BoardCenter;
+        }
 
         void Start()
         {
@@ -245,29 +250,13 @@ namespace VoidConverter.View
             }
         }
 
-        /// <summary>Frames the grid with the hand area below it, whatever the screen aspect ratio.</summary>
+        /// <summary>Shows the whole play screen (see HudLayout), whatever the screen aspect ratio.</summary>
         void FitCamera()
         {
             var cam = Camera.main;
             if (cam == null) return;
-            cam.orthographic = true;
             fittedAspect = cam.aspect;
-
-            float gridHalfWidth = config.GridHalfWidth;
-            float gridHalfHeight = config.GridHalfHeight;
-            float handWidth = config.handSize * config.handSlotSize + (config.handSize - 1) * config.handSlotGap;
-
-            float top = gridHalfHeight + HudSpace;
-            float bottom = gridHalfHeight + HandGapBelowGrid + config.handSlotSize + CameraMargin;
-            // Room on the right for the odds panel shown while a block is dragged; keep the board centered by
-            // reserving the same room on the left.
-            float panelReach = gridHalfWidth + HandView.SidePanelGap + HandView.SidePanelWidth;
-            float halfWidth = Mathf.Max(panelReach, handWidth * 0.5f) + 0.3f;
-
-            // orthographicSize is the vertical half-extent, so widen it when the view is narrower than the content.
-            cam.orthographicSize = Mathf.Max((top + bottom) * 0.5f, halfWidth / cam.aspect);
-            var pos = cam.transform.position;
-            cam.transform.position = new Vector3(0f, (top - bottom) * 0.5f, pos.z);
+            HudLayout.FitCamera(cam);
         }
 
         public static Color ChanceColor(float chance)

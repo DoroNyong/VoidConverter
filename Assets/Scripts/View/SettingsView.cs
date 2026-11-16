@@ -229,12 +229,11 @@ namespace VoidConverter.View
 
         void Update()
         {
-            // The Menu button sits in the top right corner of whatever the camera shows.
+            // The Menu button sits in the top right corner of the character box (HudLayout), whatever the window shape.
             if (cam == null) cam = Camera.main;
             if (cam == null) return;
-            float halfHeight = cam.orthographicSize;
-            float halfWidth = halfHeight * cam.aspect;
-            var corner = new Vector2(cam.transform.position.x + halfWidth - 1.0f, cam.transform.position.y + halfHeight - 0.55f);
+            var box = HudLayout.Character;
+            var corner = new Vector2(box.xMax - 0.95f, box.yMax - 0.55f);
             // The button is drawn around the root's position, and its hit area follows.
             menuButton.Root.transform.position = new Vector3(corner.x, corner.y, 0f);
             menuButton.Center = corner;

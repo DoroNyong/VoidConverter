@@ -109,7 +109,7 @@ MonoBehaviour:
   pickOneRule: 1
   pickMinPlacements: 4
   bossMinPlacements: 6
-  goalTurns: 7
+  goalTurns: 0
   trapDamage: 1
   rerollsPerRound: 2
   coveredCellsBlock: 1

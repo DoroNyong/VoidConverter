@@ -7,14 +7,13 @@ using VoidConverter.Game;
 namespace VoidConverter.View
 {
     /// <summary>
-    /// The boss marker to the right of the grid during the boss stage. It shows how many blocks were placed out of the
+    /// The boss marker in the free corner above the board's right side during the boss stage. It shows how many blocks were placed out of the
     /// number needed; once the boss is open it lights up and a click defeats it.
     /// </summary>
     public class BossView : MonoBehaviour
     {
         static readonly Color WaitingColor = new Color(0.3f, 0.2f, 0.25f);
         static readonly Color ReadyColor = new Color(0.85f, 0.25f, 0.25f);
-        static readonly Vector2 Size = new Vector2(2.2f, 2.2f);
 
         GameController controller;
         GameConfig config;
@@ -24,6 +23,7 @@ namespace VoidConverter.View
         TextMesh title;
         TextMesh status;
         Vector2 center;
+        Rect area;
 
         void Start()
         {
@@ -31,15 +31,15 @@ namespace VoidConverter.View
             config = controller.Config;
             cam = Camera.main;
 
-            // Just right of the board's right corner, level with its middle.
-            center = new Vector2(config.GridHalfWidth + 0.4f + Size.x * 0.5f, 0f);
+            // The free corner above the board's right side (HudLayout.Boss).
+            area = HudLayout.Boss;
+            center = area.center;
 
             root = new GameObject("Boss Marker");
             root.transform.SetParent(transform, false);
-            body = SpriteUtil.AddSquare(root.transform, "Body", center, 1f, WaitingColor, 5);
-            body.transform.localScale = new Vector3(Size.x, Size.y, 1f);
-            title = TextUtil.AddText(root.transform, "Title", center + new Vector2(0f, 0.5f), Loc.T("boss.title"), 64, 0.08f, Color.white, 10);
-            status = TextUtil.AddText(root.transform, "Status", center + new Vector2(0f, -0.5f), "", 48, 0.04f, Color.white, 10);
+            body = HudLayout.AddPanel(root.transform, "Body", area, WaitingColor, 5);
+            title = TextUtil.AddText(root.transform, "Title", center + new Vector2(0f, 0.45f), Loc.T("boss.title"), 64, 0.07f, Color.white, 10);
+            status = TextUtil.AddText(root.transform, "Status", center + new Vector2(0f, -0.4f), "", 44, 0.045f, Color.white, 10);
 
             controller.Changed += Refresh;
             Refresh();
@@ -56,9 +56,8 @@ namespace VoidConverter.View
             var mouse = Mouse.current;
             if (mouse == null || !mouse.leftButton.wasPressedThisFrame) return;
 
-            Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
-            bool inside = Mathf.Abs(world.x - center.x) <= Size.x * 0.5f && Mathf.Abs(world.y - center.y) <= Size.y * 0.5f;
-            if (inside) controller.DefeatBoss();
+            Vector2 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
+            if (area.Contains(world)) controller.DefeatBoss();
         }
 
         void Refresh()

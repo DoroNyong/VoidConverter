@@ -41,7 +41,7 @@ namespace VoidConverter.Game
         public int PlacementsUsed { get; private set; }
         public int MaxPlacements => config.maxPlacements;
         public int MinPlacementsToEnd => config.minPlacementsToEnd;
-        public bool OutOfPlacements => PickOneRule ? RoundOver || PlacementsUsed >= GoalTurns : !ClearRule && PlacementsUsed >= MaxPlacements;
+        public bool OutOfPlacements => PickOneRule ? RoundOver || ReachedPlacementCap : !ClearRule && PlacementsUsed >= MaxPlacements;
 
         /// <summary>The Pick-One rule (v0.3) is on: a block fires one random covered cell and a round is a gold goal.</summary>
         public bool PickOneRule => config.pickOneRule;
@@ -49,8 +49,10 @@ namespace VoidConverter.Game
         public int RoundGold { get; private set; }
         /// <summary>Pick-One: blocks that must be placed before the round may be left (or the boss defeated).</summary>
         public int MinPlacements => CurrentStage == StageType.Boss ? config.bossMinPlacements : config.pickMinPlacements;
-        /// <summary>Pick-One: blocks that may be placed in one round at most.</summary>
+        /// <summary>Pick-One: blocks that may be placed in one round at most; 0 = no limit (the round then ends only
+        /// when nothing is left to fire or no block fits).</summary>
         public int GoalTurns => config.goalTurns;
+        bool ReachedPlacementCap => GoalTurns > 0 && PlacementsUsed >= GoalTurns;
         public bool MinReached => PlacementsUsed >= MinPlacements;
         /// <summary>
         /// Pick-One: no more blocks can be placed (all used, nothing left to fire or no block fits). The round then waits
@@ -824,7 +826,7 @@ namespace VoidConverter.Game
                 Phase = RunPhase.Defeated;
                 Message += "\n" + Loc.T("msg.defeatedIn", Stage, StageCount);
             }
-            else if (PlacementsUsed >= GoalTurns || Grid.CountFresh() == 0 ||
+            else if (ReachedPlacementCap || Grid.CountFresh() == 0 ||
                      (Grid.BlockCovered && !Hand.AnyPlaceable(Grid.CanPlaceAnywhere)))
             {
                 SettleRound();

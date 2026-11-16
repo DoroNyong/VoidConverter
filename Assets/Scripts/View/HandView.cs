@@ -8,12 +8,11 @@ using VoidConverter.Game;
 namespace VoidConverter.View
 {
     /// <summary>
-    /// Shows the offered blocks below the grid. Press a slot to pick the block up, drag it over the grid
+    /// Shows the offered blocks in the bottom row (HudLayout.Hand). Press a slot to pick the block up, drag it over the grid
     /// (a ghost shows where it would land), release to place. R or right click rotates the picked block.
     /// </summary>
     public class HandView : MonoBehaviour
     {
-        static readonly Color SlotColor = new Color(0.12f, 0.17f, 0.28f);
         static readonly Color SlotSelectedColor = new Color(0.25f, 0.4f, 0.65f);
         static readonly Color BlockColor = new Color(0.9f, 0.85f, 0.6f);
         // Not yellow, which is the gold cells' color.
@@ -22,9 +21,11 @@ namespace VoidConverter.View
         const int MaxBlockCells = 4;
         // Above every picture on the board (their orders run 1 to 9), below the cells' numbers (11).
         const int GhostOrder = 10;
-        // Gap between the grid's right edge and the odds panel. GridView reserves the same room in the camera.
-        public const float SidePanelGap = 0.45f;
-        public const float SidePanelWidth = 2.8f;
+        // Gap between the grid's right edge and the odds text (older rules only; Pick-One shows the chances on the cells).
+        const float SidePanelGap = 0.45f;
+        // Pick-One: the odds as text beside the board. Off since 2026-11-16: the chances show on the covered cells.
+        static readonly bool ShowOddsText = false;
+        static readonly Color SlotFrameColor = new Color(0.11f, 0.14f, 0.22f, 0.92f);
 
         GameController controller;
         GameConfig config;
@@ -246,8 +247,8 @@ namespace VoidConverter.View
                 ghostInfo.color = GridView.ChanceColor(win);
                 controller.Player.BlockBonus = 0;
                 // Fixed spot beside the grid, so it never covers the cells the player is judging.
-                float sideX = controller.Config.GridHalfWidth + SidePanelGap;
-                ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
+                float sideX = HudLayout.BoardCenter.x + controller.Config.GridHalfWidth + SidePanelGap;
+                ghostInfo.transform.position = new Vector3(sideX, HudLayout.BoardCenter.y, 0f);
                 ghostInfo.gameObject.SetActive(true);
             }
             else
@@ -290,6 +291,11 @@ namespace VoidConverter.View
             }
             marks.Show(cellPositions, cellChances, cellDangers);
 
+            // The chances are on the cells themselves (and the danger tags on them), so the text panel beside the
+            // board is no longer shown (2026-11-16). The lines below are kept for a later hover or info box.
+            ghostInfo.gameObject.SetActive(false);
+            if (!ShowOddsText) return;
+
             if (odds.Candidates == 0)
             {
                 ghostInfo.text = Loc.T("odds.nothing");
@@ -315,8 +321,8 @@ namespace VoidConverter.View
                 // The more gold on average, the greener.
                 ghostInfo.color = GridView.ChanceColor(Mathf.Clamp01(odds.ExpectedGold / 2f));
             }
-            float sideX = controller.Config.GridHalfWidth + SidePanelGap;
-            ghostInfo.transform.position = new Vector3(sideX, 0f, 0f);
+            float sideX = HudLayout.BoardCenter.x + controller.Config.GridHalfWidth + SidePanelGap;
+            ghostInfo.transform.position = new Vector3(sideX, HudLayout.BoardCenter.y, 0f);
             ghostInfo.gameObject.SetActive(true);
         }
 
@@ -372,22 +378,22 @@ namespace VoidConverter.View
             return new Vector2((x - y) * height * config.tileAspect * 0.5f, (x + y) * height * 0.5f);
         }
 
-        Vector2 SlotCenter(int index)
+        /// <summary>The hand's box in the bottom row (HudLayout), split evenly when the hand holds more than one block.</summary>
+        Rect SlotRect(int index)
         {
-            float gridHalfHeight = config.GridHalfHeight;
-            float pitch = config.handSlotSize + config.handSlotGap;
-            float x = (index - (controller.Hand.Size - 1) * 0.5f) * pitch;
-            float y = -(gridHalfHeight + 0.6f + config.handSlotSize * 0.5f);
-            return new Vector2(x, y);
+            var box = HudLayout.Hand;
+            int count = Mathf.Max(1, controller.Hand.Size);
+            float width = (box.width - (count - 1) * config.handSlotGap) / count;
+            return new Rect(box.xMin + index * (width + config.handSlotGap), box.yMin, width, box.height);
         }
+
+        Vector2 SlotCenter(int index) => SlotRect(index).center;
 
         int SlotAt(Vector3 world)
         {
-            float half = config.handSlotSize * 0.5f;
             for (int i = 0; i < controller.Hand.Size; i++)
             {
-                var c = SlotCenter(i);
-                if (Mathf.Abs(world.x - c.x) <= half && Mathf.Abs(world.y - c.y) <= half) return i;
+                if (SlotRect(i).Contains((Vector2)world)) return i;
             }
             return -1;
         }
@@ -399,10 +405,10 @@ namespace VoidConverter.View
             var hand = controller.Hand;
             for (int i = 0; i < hand.Size; i++)
             {
-                Vector2 center = SlotCenter(i);
+                var slot = SlotRect(i);
+                Vector2 center = slot.center;
                 bool highlighted = dragging ? i == hand.Selected : i == hoveredSlot;
-                SpriteUtil.AddSquare(transform, $"Slot {i}", center, config.handSlotSize,
-                    highlighted ? SlotSelectedColor : SlotColor, -1);
+                HudLayout.AddPanel(transform, $"Slot {i}", slot, highlighted ? SlotSelectedColor : SlotFrameColor, -1);
 
                 var cells = hand.CellsOf(i);
                 if (cells == null) continue;
