@@ -100,6 +100,7 @@ namespace VoidConverter.Core
             { "hud.weightsNone", "No change yet" },
             { "hud.next", "Next: {0}  ({1}/{2})" },
             { "hud.nextClear", "Next: Clear" },
+            { "hud.bossPhase", "Boss phase {0}/{1}" },
 
             // Buttons beside the hand
             { "btn.reroll", "Reroll (E)\n{0} left" },
@@ -113,13 +114,6 @@ namespace VoidConverter.Core
             { "btn.nextPhase", "Next\nPhase" },
             { "btn.nextStage", "Next\nStage" },
             { "btn.leave", "Leave" },
-
-            // Boss marker
-            { "boss.title", "BOSS" },
-            { "boss.clickDefeat", "Click to\ndefeat!" },
-            { "boss.clickNext", "Click:\nnext phase" },
-            { "boss.phase", "Phase {0}/{1}\n{2}/{3}" },
-            { "boss.place", "Place\n{0}/{1}" },
 
             // Block preview panel and tags
             { "odds.nothing", "Nothing under\nthis block" },
@@ -150,6 +144,7 @@ namespace VoidConverter.Core
             { "msg.bossDefeated", "Boss defeated!" },
             { "msg.cannotChoose", "Cannot choose: {0}" },
             { "msg.choiceResult", "{0}: {1}" },
+            { "msg.choicePicked", "Selected: {0}  (Continue to apply, or pick another)" },
             { "msg.bought", "Bought {0} ({1}) for {2}" },
             { "msg.notEnough", "Not enough gold for {0} ({1})" },
             { "msg.hpFull", "HP is already full" },
@@ -163,6 +158,7 @@ namespace VoidConverter.Core
             { "msg.nothingHappened", "Nothing happened" },
             { "msg.zoneCenter", "DANGER ZONE CENTER!  Defeated at once" },
             { "msg.zone", "DANGER ZONE!  -{0} HP" },
+            { "msg.zoneGone", "The danger zone is gone." },
             { "msg.defeatedIn", "DEFEATED in stage {0}/{1}   (Space: restart)" },
             { "msg.bossOpen", "The boss is open! (${0} earned)  Press the button to defeat it." },
             { "msg.bossHurt", "The boss is hurt! (${0} earned)  Press the button for the next phase." },
@@ -265,6 +261,7 @@ namespace VoidConverter.Core
             { "hud.weightsNone", "아직 변화 없음" },
             { "hud.next", "다음: {0}  ({1}/{2})" },
             { "hud.nextClear", "다음: 클리어" },
+            { "hud.bossPhase", "보스 {0}/{1} 단계" },
 
             { "btn.reroll", "리롤 (E)\n{0}회 남음" },
             { "btn.chooseOne", "하나를\n고르세요" },
@@ -277,12 +274,6 @@ namespace VoidConverter.Core
             { "btn.nextPhase", "다음\n단계" },
             { "btn.nextStage", "다음\n스테이지" },
             { "btn.leave", "나가기" },
-
-            { "boss.title", "보스" },
-            { "boss.clickDefeat", "클릭하여\n처치!" },
-            { "boss.clickNext", "클릭:\n다음 단계" },
-            { "boss.phase", "{0}/{1} 단계\n{2}/{3}" },
-            { "boss.place", "배치\n{0}/{1}" },
 
             { "odds.nothing", "블록 아래에\n아무것도 없음" },
             { "odds.fires", "{0}칸 중 1칸이 터짐" },
@@ -310,6 +301,7 @@ namespace VoidConverter.Core
             { "msg.bossDefeated", "보스를 쓰러뜨렸다!" },
             { "msg.cannotChoose", "선택할 수 없음: {0}" },
             { "msg.choiceResult", "{0}: {1}" },
+            { "msg.choicePicked", "선택: {0}  (계속을 누르면 적용, 다른 것으로 바꿀 수 있음)" },
             { "msg.bought", "구매: {0} ({1}) - {2}" },
             { "msg.notEnough", "골드 부족: {0} ({1})" },
             { "msg.hpFull", "HP가 이미 가득 찼습니다" },
@@ -323,6 +315,7 @@ namespace VoidConverter.Core
             { "msg.nothingHappened", "아무 일도 없었다" },
             { "msg.zoneCenter", "위험 구역 중심!  즉시 패배" },
             { "msg.zone", "위험 구역!  -{0} HP" },
+            { "msg.zoneGone", "위험 구역이 사라졌다." },
             { "msg.defeatedIn", "{0}/{1} 스테이지에서 패배   (스페이스: 다시 시작)" },
             { "msg.bossOpen", "보스가 열렸다! (획득 ${0})  버튼을 눌러 쓰러뜨리세요." },
             { "msg.bossHurt", "보스가 다쳤다! (획득 ${0})  버튼을 눌러 다음 단계로." },

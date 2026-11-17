@@ -24,6 +24,8 @@ namespace VoidConverter.View
         static readonly Color ButtonColor = new Color(0.25f, 0.55f, 0.35f);
         static readonly Color SideButtonColor = new Color(0.2f, 0.26f, 0.36f);
         static readonly Color CardColor = new Color(0.13f, 0.18f, 0.27f);
+        // Height of the character picture on a select card.
+        const float SwatchSize = 1.1f;
 
         // Above every other view except the screen fader.
         const int BackdropOrder = 200;
@@ -126,7 +128,7 @@ namespace VoidConverter.View
                 var center = new Vector2(i == 0 ? -2.5f : 2.5f, 0.15f);
                 cards[i] = MakeButton("Card " + (i + 1), center, new Vector2(4.4f, 3.6f), CardColor, 0.05f, () => controller.ChooseCharacter(index));
                 cards[i].Label.text = "";
-                swatches[i] = SpriteUtil.AddSquare(cards[i].Root.transform, "Swatch", center + new Vector2(0f, 1.0f), 1.1f, Color.white, SwatchOrder);
+                swatches[i] = SpriteUtil.AddSquare(cards[i].Root.transform, "Swatch", center + new Vector2(0f, 1.15f), SwatchSize, Color.white, SwatchOrder);
                 cardNames[i] = TextUtil.AddText(cards[i].Root.transform, "Name", center + new Vector2(0f, 0.15f), "", 64, 0.08f, Color.white, TextOrder);
                 cardTexts[i] = TextUtil.AddText(cards[i].Root.transform, "Text", center + new Vector2(0f, -0.95f), "", 64, 0.04f, TextColor, TextOrder);
             }
@@ -319,7 +321,8 @@ namespace VoidConverter.View
             {
                 if (i >= controller.CharacterCount) continue;
                 var c = config.characters[i];
-                swatches[i].color = c.color;
+                // The character picture (Resources/Sprites/Characters), or the card color until one exists.
+                SpriteUtil.ShowCharacter(swatches[i], c.displayName, c.color, SwatchSize);
                 cardNames[i].text = $"{i + 1}. {Loc.TOr("char." + c.displayName + ".name", c.displayName)}";
                 cardTexts[i].text = $"HP {c.maxHp}    {Loc.T("stat.atk")} {c.attack}    {Loc.T("stat.mag")} {c.magic}\n{Loc.TOr("char." + c.displayName + ".desc", c.description)}";
                 buttons.Add(cards[i]);

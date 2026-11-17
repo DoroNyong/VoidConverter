@@ -8,7 +8,7 @@ namespace VoidConverter.View
     /// place. The screen is a fixed 16:9 area; the camera shows all of it (wider or taller windows get extra margin).
     ///
     ///  +-------------+                              +-----------+
-    ///  | Info        |            (boss)            | Character |
+    ///  | Info        |                              | Character |
     ///  +-------------+                              +-----------+
     ///          /\                                   | Stats     |
     ///         /  \  board                           +-----------+
@@ -56,8 +56,6 @@ namespace VoidConverter.View
         public static Rect Reroll => Box(184, 562, 342, 712);
         public static Rect Hand => Box(348, 562, 616, 712);
         public static Rect Weights => Box(622, 562, 994, 712);
-        /// <summary>The free corner above the board's right side, used by the boss panel in the boss stage.</summary>
-        public static Rect Boss => Box(650, 14, 990, 168);
 
         /// <summary>Middle of the board: in the space left of the right column and above the bottom row.</summary>
         public static Vector2 BoardCenter => Point(497f, 282f);
@@ -66,13 +64,14 @@ namespace VoidConverter.View
         public static void FitCamera(Camera cam)
         {
             cam.orthographic = true;
+            // The play screen's background (the same dark blue as the title, event and shop screens), also any margin
+            // outside the 16:9 area.
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = BackgroundColor;
             cam.orthographicSize = Mathf.Max(HalfHeight, HalfWidth / cam.aspect);
             var pos = cam.transform.position;
             cam.transform.position = new Vector3(Center.x, Center.y, pos.z);
         }
-
-        /// <summary>True if a world point is inside the rectangle.</summary>
-        public static bool Contains(Rect r, Vector2 p) => r.Contains(p);
 
         /// <summary>A text's position at the top-left of a panel, with a margin.</summary>
         public static Vector2 TopLeft(Rect r, float margin = 0.25f) => new Vector2(r.xMin + margin, r.yMax - margin);
@@ -83,6 +82,7 @@ namespace VoidConverter.View
             return SpriteUtil.AddBox(parent, name, r.center, r.width, r.height, color, order);
         }
 
+        public static readonly Color BackgroundColor = new Color(0.07f, 0.1f, 0.16f);
         public static readonly Color PanelColor = new Color(0.11f, 0.14f, 0.22f, 0.92f);
         public static readonly Color TitleColor = new Color(1f, 0.9f, 0.55f);
         public static readonly Color MutedColor = new Color(1f, 1f, 1f, 0.45f);

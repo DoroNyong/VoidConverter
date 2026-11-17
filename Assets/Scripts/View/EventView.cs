@@ -8,7 +8,8 @@ namespace VoidConverter.View
 {
     /// <summary>
     /// The event screen, drawn full screen during an Event stage: the event's title and text, and one button per
-    /// choice (click to take it). After a choice is taken the buttons dim and Continue (RoundButtonView) unlocks.
+    /// choice. Clicking a choice selects it (another click on a different one changes the selection); Continue
+    /// (RoundButtonView) unlocks once one is selected and applies it.
     /// </summary>
     public class EventView : MonoBehaviour
     {
@@ -99,8 +100,9 @@ namespace VoidConverter.View
             {
                 var choice = e.Choices[i];
                 bool chosen = controller.EventChoiceTaken == i;
-                // Dim the other choices once one was taken, and the ones the player cannot pay for.
-                bool dim = controller.EventResolved ? !chosen : !choice.IsAvailable(controller.Player);
+                // The selected choice is highlighted; the others stay clickable (the selection can change until
+                // Continue). Only the ones the player cannot pay for are dimmed.
+                bool dim = !chosen && !choice.IsAvailable(controller.Player);
                 Vector2 c = ChoiceCenter(i);
 
                 var button = SpriteUtil.AddSquare(choicesRoot.transform, "Choice", c, 1f, chosen ? ChosenColor : dim ? DimColor : ChoiceColor, 65);

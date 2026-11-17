@@ -164,6 +164,28 @@ namespace VoidConverter.View
             return sr;
         }
 
+        /// <summary>
+        /// Shows a character's picture (Resources/Sprites/Characters/&lt;name in lower case&gt;, e.g. warrior) in the renderer,
+        /// <paramref name="height"/> world units high. Without a picture it is a square of the character's card color.
+        /// </summary>
+        public static void ShowCharacter(SpriteRenderer sr, string displayName, Color fallbackColor, float height)
+        {
+            var sprite = Resources.Load<Sprite>("Sprites/Characters/" + displayName.ToLowerInvariant());
+            if (sprite != null)
+            {
+                sr.sprite = sprite;
+                sr.color = Color.white;
+                float scale = height / sprite.bounds.size.y;
+                sr.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+            else
+            {
+                sr.sprite = Square;
+                sr.color = fallbackColor;
+                sr.transform.localScale = new Vector3(height, height, 1f);
+            }
+        }
+
         public static SpriteRenderer AddSquare(Transform parent, string name, Vector2 localPos, float size, Color color, int order)
         {
             var go = new GameObject(name);

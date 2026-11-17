@@ -160,7 +160,7 @@ namespace VoidConverter.Game
 
         /// <summary>The event of the current Event stage, or null outside it.</summary>
         public EventDefinition CurrentEvent { get; private set; }
-        /// <summary>Index of the choice taken in the current event, or -1 while none was taken yet.</summary>
+        /// <summary>Index of the choice selected in the current event, or -1 while none is selected. It is applied on Continue.</summary>
         public int EventChoiceTaken { get; private set; } = -1;
         public bool EventResolved => EventChoiceTaken >= 0;
 
@@ -477,8 +477,15 @@ namespace VoidConverter.Game
             if (InputLocked) return;
             if (Phase == RunPhase.Event || Phase == RunPhase.Shop)
             {
-                // An event must be answered before moving on.
-                if (Phase == RunPhase.Event && !EventResolved) return;
+                // An event must be answered before moving on; the selected choice takes effect now, and its result is
+                // shown in the next stage's info box.
+                if (Phase == RunPhase.Event)
+                {
+                    if (!EventResolved) return;
+                    ApplyEventChoice();
+                    AdvanceStage(0f, false);
+                    return;
+                }
                 AdvanceStage(0f, true);
                 return;
             }
@@ -552,10 +559,14 @@ namespace VoidConverter.Game
             return true;
         }
 
-        /// <summary>Takes the choice at this position in the current event (once). Returns whether it was applied.</summary>
+        /// <summary>
+        /// Selects the choice at this position in the current event. Nothing happens yet: another choice can be selected
+        /// instead, and the selected one is applied when the player presses Continue (PressMainButton). Returns whether
+        /// it was selected.
+        /// </summary>
         public bool ChooseEventOption(int index)
         {
-            if (InputLocked || Phase != RunPhase.Event || CurrentEvent == null || EventResolved) return false;
+            if (InputLocked || Phase != RunPhase.Event || CurrentEvent == null) return false;
             if (index < 0 || index >= CurrentEvent.Choices.Count) return false;
 
             var choice = CurrentEvent.Choices[index];
@@ -566,11 +577,19 @@ namespace VoidConverter.Game
                 return false;
             }
 
-            string result = EventRules.Apply(Player, choice, rng);
             EventChoiceTaken = index;
-            Message = Loc.T("msg.choiceResult", choice.Label, result);
+            Message = Loc.T("msg.choicePicked", choice.Label);
             Changed?.Invoke();
             return true;
+        }
+
+        /// <summary>Applies the selected event choice; the result stays as the message for the next stage.</summary>
+        void ApplyEventChoice()
+        {
+            if (CurrentEvent == null || EventChoiceTaken < 0 || EventChoiceTaken >= CurrentEvent.Choices.Count) return;
+            var choice = CurrentEvent.Choices[EventChoiceTaken];
+            string result = EventRules.Apply(Player, choice, rng);
+            Message = Loc.T("msg.choiceResult", choice.Label, result);
         }
 
         /// <summary>Buys the offer at this shelf position during the Shop stage. Returns whether it was bought.</summary>
@@ -817,6 +836,13 @@ namespace VoidConverter.Game
             }
 
             PlacementsUsed++;
+            // The boss's gimmick (the danger zone) is gone once the minimum is placed: from then on the board is
+            // played without it (2026-11-17 decision).
+            if (Zone != null && IsBossStage && MinReached)
+            {
+                Zone = null;
+                line += "\n" + Loc.T("msg.zoneGone");
+            }
             Hand.UseSelected();
             Hand.Fill(config.ToBlockSettings(), rng, Grid.CanPlaceAnywhere);
             Message = line;

@@ -132,24 +132,8 @@ namespace VoidConverter.View
             if (index == shownCharacter) return;
             shownCharacter = index;
 
-            // A picture named after the character (Resources/Sprites/Characters/warrior); without one, the card color.
-            var sprite = Resources.Load<Sprite>("Sprites/Characters/" + data.displayName.ToLowerInvariant());
-            var box = HudLayout.Character;
-            float height = box.height - 0.9f;
             characterPicture.gameObject.SetActive(true);
-            if (sprite != null)
-            {
-                characterPicture.sprite = sprite;
-                characterPicture.color = Color.white;
-                float scale = height / sprite.bounds.size.y;
-                characterPicture.transform.localScale = new Vector3(scale, scale, 1f);
-            }
-            else
-            {
-                characterPicture.sprite = SpriteUtil.Square;
-                characterPicture.color = data.color;
-                characterPicture.transform.localScale = new Vector3(height, height, 1f);
-            }
+            SpriteUtil.ShowCharacter(characterPicture, data.displayName, data.color, HudLayout.Character.height - 0.9f);
         }
 
         /// <summary>

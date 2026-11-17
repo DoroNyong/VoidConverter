@@ -59,6 +59,12 @@ namespace VoidConverter.View
         // Japanese and Hanja. It is drawn crisp only at multiples of its 11 pixel size.
         const string PixelFontPath = "Fonts/Galmuri11";
         const int PixelFontSize = 11;
+        /// <summary>
+        /// The smallest text: fontSize x characterSize. The camera always shows the same 16:9 area (HudLayout), so text
+        /// grows and shrinks with the window. At 1.98 a Galmuri letter is about 15 pixels tall in a 720p window and 22 in
+        /// a 1080p one (the stats text, which read fine). Bigger text keeps its own size.
+        /// </summary>
+        public const float MinTextScale = 1.98f;
         static Font pixelFont;
         static bool pixelFontLoaded;
 
@@ -108,6 +114,8 @@ namespace VoidConverter.View
                 characterSize *= fontSize / (float)snapped;
                 fontSize = snapped;
             }
+            // No text smaller than MinTextScale (2026-11-17: item lists, descriptions and hints were too small to read).
+            characterSize = Mathf.Max(characterSize, MinTextScale / fontSize);
             var tm = go.AddComponent<TextMesh>();
             tm.font = font;
             tm.text = text;

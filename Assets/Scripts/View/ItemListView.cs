@@ -53,8 +53,8 @@ namespace VoidConverter.View
             Vector2 top = HudLayout.TopLeft(box);
             title.transform.position = top;
             list.transform.position = top + new Vector2(0f, -0.55f);
-            // The debug keys go just under the box, small.
-            hint.transform.position = new Vector2(box.xMin + Margin, box.yMin + 0.45f);
+            // The debug keys (editor and development builds only) go at the bottom of the box.
+            hint.transform.position = new Vector2(box.xMin + Margin, box.yMin + 0.85f);
         }
 
         void Refresh()

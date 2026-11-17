@@ -33,7 +33,7 @@
 
 | 팩 | 출처 | 라이선스 | 쓰는 곳 |
 |---|---|---|---|
-| Tiny Dungeon 1.0 (Kenney) | https://kenney.nl/assets/tiny-dungeon, 2026-11-15에 내려받음 | CC0 1.0 (`Assets/Resources/Sprites/Monsters/Kenney-TinyDungeon-License.txt`) | 몬스터 4종 (`Monsters/*_idle.png`: slime=타일 108, beast=110, wisp=121, brute=109), 골드 칸(`Icons/gold.png`=타일 89 상자), 회복 칸(`Icons/heal.png`=타일 115 물약), 게임 화면의 캐릭터 그림(`Sprites/Characters/warrior.png`=타일 96 기사, `mage.png`=타일 84 마법사, 2026-11-16 추가) |
+| Tiny Dungeon 1.0 (Kenney) | https://kenney.nl/assets/tiny-dungeon, 2026-11-15에 내려받음 | CC0 1.0 (`Assets/Resources/Sprites/Monsters/Kenney-TinyDungeon-License.txt`) | 몬스터 4종 (`Monsters/*_idle.png`: slime=타일 108, beast=110, wisp=121, brute=109), 골드 칸(`Icons/gold.png`=타일 89 상자), 회복 칸(`Icons/heal.png`=타일 115 물약), 캐릭터 선택 카드와 게임 화면의 캐릭터 그림(`Sprites/Characters/warrior.png`=타일 96 기사, `mage.png`=타일 84 마법사, 2026-11-16 추가) |
 | Pixel UI Pack 1.0 (Kenney) | https://kenney.nl/assets/pixel-ui-pack, 2026-11-15에 내려받음 | CC0 1.0 (`Assets/Resources/Sprites/UI/Kenney-PixelUIPack-License.txt`) | 버튼과 패널 9-slice (`Sprites/UI/box.png` = 9-Slice/Colored/grey.png) |
 
 - 몬스터는 16x16 한 장을 그대로 쓰고, 2프레임 시트로 만들었다(두 번째 프레임은 1픽셀 위로 올린 것). 그 외 후보정은 없다.

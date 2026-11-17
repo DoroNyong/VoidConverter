@@ -68,6 +68,9 @@ namespace VoidConverter.View
         /// <summary>"Next: Event (4/11)": the stage after this one and its place in the run.</summary>
         string NextStageLine()
         {
+            // The boss is played on several boards in a row: say which one this is (the boss box above the board is gone).
+            if (controller.IsBossStage && controller.BossRounds > 1)
+                return Loc.T("hud.bossPhase", controller.BossRound, controller.BossRounds);
             int next = controller.Stage + 1;
             if (next > controller.StageCount) return Loc.T("hud.nextClear");
             return Loc.T("hud.next", Loc.T("stage." + config.stages[next - 1]), next, controller.StageCount);
