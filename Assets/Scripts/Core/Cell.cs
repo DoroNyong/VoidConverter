@@ -23,9 +23,27 @@ namespace VoidConverter.Core
         Brute,
     }
 
+    /// <summary>
+    /// Whether the floor under a cell is there (2026-11-22, idea 34). Only the mechanism: which boss or monster cracks
+    /// which cells is not decided yet. See Grid.MarkCrack / Grid.AdvanceFloor and BoardShape.
+    /// </summary>
+    public enum CellFloor
+    {
+        /// <summary>A normal cell.</summary>
+        Solid,
+        /// <summary>Marked to break: still a normal cell for every rule, it breaks after the next placement.</summary>
+        Cracked,
+        /// <summary>Not part of the board: never there (BoardShape) or broken. Nothing is drawn and no block may cover it.</summary>
+        Hole,
+    }
+
     public class Cell
     {
         public CellType Type;
+        // Solid, cracked (breaks after the next placement) or a hole. A hole also counts as Used, so every rule that
+        // skips spent cells (odds, buffs, contamination, the round end) skips it without a check of its own.
+        public CellFloor Floor;
+        public bool IsHole => Floor == CellFloor.Hole;
         // Monster cells only: which monster it is (for its picture).
         public MonsterSpecies Species;
         // Pick-One rule: a block was placed over this cell. A covered cell never fires and (with BlockCovered) takes no block again.

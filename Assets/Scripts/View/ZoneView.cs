@@ -90,9 +90,9 @@ namespace VoidConverter.View
             {
                 for (int dy = -1; dy <= 1; dy++, i++)
                 {
-                    // The part of the zone that hangs over the edge of the board is not drawn.
+                    // The part of the zone that hangs over the edge of the board (or over a hole) is not drawn.
                     int cx = zone.CenterX + dx, cy = zone.CenterY + dy;
-                    bool onBoard = cx >= 0 && cy >= 0 && cx < controller.Grid.Width && cy < controller.Grid.Height;
+                    bool onBoard = controller.Grid.Exists(cx, cy);
                     fills[i].enabled = onBoard;
                     frames[i].enabled = onBoard;
                     innerFrames[i].enabled = onBoard;

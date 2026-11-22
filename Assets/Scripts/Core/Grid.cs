@@ -22,6 +22,9 @@ namespace VoidConverter.Core
 
         public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;
 
+        /// <summary>True if the cell is inside the grid and part of the board (not a hole).</summary>
+        public bool Exists(int x, int y) => InBounds(x, y) && cells[x, y].Floor != CellFloor.Hole;
+
         /// <summary>
         /// How many spacing rules had to be dropped to lay out the last generated board (see GridLayout.Layout.Relaxation).
         /// 0 is the normal case.
@@ -30,6 +33,9 @@ namespace VoidConverter.Core
 
         public void Generate(GridSettings settings, Random rng)
         {
+            var shape = settings.Shape;
+            if (shape != null && (shape.Width != Width || shape.Height != Height))
+                throw new ArgumentException($"Board shape is {shape.Width}x{shape.Height} but the grid is {Width}x{Height}.");
             var layout = GridLayout.Build(Width, Height, settings, rng);
             LastRelaxation = layout.Relaxation;
             var assigned = AssignMonsterSpecs(layout.Types, settings, rng);
@@ -38,6 +44,12 @@ namespace VoidConverter.Core
             {
                 for (int y = 0; y < Height; y++)
                 {
+                    // A cell the shape leaves out is a hole from the start (GridLayout put nothing there).
+                    if (shape != null && !shape.Has(x, y))
+                    {
+                        cells[x, y] = new Cell { Type = CellType.Empty, Used = true, Floor = CellFloor.Hole };
+                        continue;
+                    }
                     var type = layout.Types[x, y];
                     int power = type == CellType.Monster ? rng.Next(settings.MonsterPowerMin, settings.MonsterPowerMax + 1) : 0;
                     bool magic = false;
@@ -334,6 +346,8 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) return false;
                 var cell = cells[x, y];
+                // No block may hang over a hole, overlap rule or not.
+                if (cell.Floor == CellFloor.Hole) return false;
                 if (BlockCovered && cell.Covered) return false;
                 if (cell.Used && !AllowOverlap) return false;
             }
@@ -555,6 +569,88 @@ namespace VoidConverter.Core
             return count;
         }
 
+        // ---- Floor: board shapes and breaking cells (2026-11-22, idea 34) ----
+        // Only the mechanism. Who cracks which cells (a boss, a monster) is decided later; such a rule is an
+        // IFloorGimmick added to FloorGimmicks, or calls MarkCrack / Break itself.
+
+        /// <summary>Gimmicks asked after every placement (see AdvanceFloor). Empty unless a stage adds some.</summary>
+        public List<IFloorGimmick> FloorGimmicks { get; } = new List<IFloorGimmick>();
+
+        /// <summary>The cells that broke in the last AdvanceFloor (for effects). Empty if none did.</summary>
+        public IReadOnlyList<Int2> LastBroken => lastBroken;
+        readonly List<Int2> lastBroken = new List<Int2>();
+
+        /// <summary>
+        /// Marks a solid cell to break after the next placement (AdvanceFloor). It stays a normal cell until then:
+        /// it can be covered and it can fire. Returns false if the cell is outside, a hole or already marked.
+        /// </summary>
+        public bool MarkCrack(int x, int y)
+        {
+            if (!InBounds(x, y) || cells[x, y].Floor != CellFloor.Solid) return false;
+            cells[x, y].Floor = CellFloor.Cracked;
+            return true;
+        }
+
+        /// <summary>Takes the mark off a cracked cell (it stays). Returns false if the cell was not cracked.</summary>
+        public bool ClearCrack(int x, int y)
+        {
+            if (!InBounds(x, y) || cells[x, y].Floor != CellFloor.Cracked) return false;
+            cells[x, y].Floor = CellFloor.Solid;
+            return true;
+        }
+
+        /// <summary>How many cells are marked to break.</summary>
+        public int CountCracked()
+        {
+            int count = 0;
+            foreach (var c in cells) if (c.Floor == CellFloor.Cracked) count++;
+            return count;
+        }
+
+        /// <summary>
+        /// Breaks a cell at once: it becomes a hole and whatever was on it is gone without any effect. A Wisp that
+        /// buffed it picks a new monster. Returns false if the cell is outside or already a hole.
+        /// </summary>
+        public bool Break(int x, int y, Random rng)
+        {
+            if (!BreakCell(x, y)) return false;
+            RetargetBuffs(rng);
+            return true;
+        }
+
+        bool BreakCell(int x, int y)
+        {
+            if (!InBounds(x, y) || cells[x, y].Floor == CellFloor.Hole) return false;
+            var cell = cells[x, y];
+            cell.Floor = CellFloor.Hole;
+            // A hole counts as spent for every rule (see Cell.Floor).
+            cell.Used = true;
+            cell.Contaminated = false;
+            cell.BuffX = -1;
+            cell.BuffY = -1;
+            return true;
+        }
+
+        /// <summary>
+        /// Call once after every placement, after the placement's own effects. First every cracked cell breaks
+        /// (LastBroken lists them), then every gimmick in FloorGimmicks marks new cells, which therefore break after
+        /// the next placement. Returns how many cells broke.
+        /// </summary>
+        public int AdvanceFloor(Random rng)
+        {
+            lastBroken.Clear();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (cells[x, y].Floor == CellFloor.Cracked && BreakCell(x, y)) lastBroken.Add(new Int2(x, y));
+                }
+            }
+            if (lastBroken.Count > 0) RetargetBuffs(rng);
+            foreach (var gimmick in FloorGimmicks) gimmick.MarkCracks(this, rng);
+            return lastBroken.Count;
+        }
+
         /// <summary>Rolls a new shared void power from the player's current corruption.</summary>
         public void RerollVoidPower(PlayerStats player, VoidSettings settings, Random rng)
         {
@@ -590,7 +686,7 @@ namespace VoidConverter.Core
                 int y = originY + c.Y;
                 if (!InBounds(x, y)) continue;
                 var cell = cells[x, y];
-                if (cell.Used || cell.Covered || cell.Type == CellType.Empty) continue;
+                if (cell.Used || cell.Covered || cell.IsHole || cell.Type == CellType.Empty) continue;
                 list.Add(new ActivatedCell { X = x, Y = y, Type = cell.Type, Power = EffectivePower(x, y, covered), Magic = cell.Magic, Kind = cell.Kind, Contaminated = cell.Contaminated });
             }
             return list;
@@ -695,6 +791,9 @@ namespace VoidConverter.Core
         public int MaxMonsterCluster;
         // Monster types a monster cell may take (kind, required power, weight). Null/empty = a random physical power.
         public MonsterSpec[] MonsterSpecs;
+        // Which cells of the board exist (idea 34). Null = every cell. Must match the grid's size. Cell counts are
+        // taken from the cells that exist (a smaller board gets fewer monsters, not fewer traps).
+        public BoardShape Shape;
         public int GoldMin;
         public int HealMin;
         // Pick-One rule (MonsterCount above 0): gold and heal counts are drawn from GoldMin..GoldMax and HealMin..HealMax.

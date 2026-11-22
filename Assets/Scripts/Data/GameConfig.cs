@@ -146,20 +146,26 @@ namespace VoidConverter.Data
         /// <summary>Half the height of the whole board, vertex to vertex.</summary>
         public float GridHalfHeight => (gridWidth + gridHeight - 2) * StepY * 0.25f + cellSize * 0.5f;
 
-        /// <summary>Screen offset (relative to the board center) of a cell given in fractional cell coordinates.</summary>
-        public Vector2 CellOffset(float x, float y)
+        /// <summary>Screen offset (relative to the board center) of a cell given in fractional cell coordinates, on a gridWidth x gridHeight board.</summary>
+        public Vector2 CellOffset(float x, float y) => CellOffset(x, y, gridWidth, gridHeight);
+
+        /// <summary>Same, centered on a board of the given size (a stage's board may differ from gridWidth x gridHeight).</summary>
+        public Vector2 CellOffset(float x, float y, int width, int height)
         {
-            float u = x - (gridWidth - 1) * 0.5f;
-            float v = y - (gridHeight - 1) * 0.5f;
+            float u = x - (width - 1) * 0.5f;
+            float v = y - (height - 1) * 0.5f;
             return new Vector2((u - v) * StepX * 0.5f, (u + v) * StepY * 0.5f);
         }
 
-        /// <summary>The reverse of <see cref="CellOffset"/>: fractional cell coordinates (cell centers on whole numbers).</summary>
-        public Vector2 OffsetToCell(Vector2 offset)
+        /// <summary>The reverse of <see cref="CellOffset(float, float)"/>: fractional cell coordinates (cell centers on whole numbers).</summary>
+        public Vector2 OffsetToCell(Vector2 offset) => OffsetToCell(offset, gridWidth, gridHeight);
+
+        /// <summary>The reverse of <see cref="CellOffset(float, float, int, int)"/>.</summary>
+        public Vector2 OffsetToCell(Vector2 offset, int width, int height)
         {
             float diff = offset.x * 2f / StepX;
             float sum = offset.y * 2f / StepY;
-            return new Vector2((sum + diff) * 0.5f + (gridWidth - 1) * 0.5f, (sum - diff) * 0.5f + (gridHeight - 1) * 0.5f);
+            return new Vector2((sum + diff) * 0.5f + (width - 1) * 0.5f, (sum - diff) * 0.5f + (height - 1) * 0.5f);
         }
 
         [Header("Cell Counts")]

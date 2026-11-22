@@ -26,7 +26,9 @@ namespace VoidConverter.Core
 
         public static Layout Build(int width, int height, GridSettings s, Random rng)
         {
-            var counts = ResolveCounts(width * height, s, rng);
+            // Cells a board shape leaves out (idea 34) take nothing: counts come from the cells that exist.
+            var shape = s.Shape;
+            var counts = ResolveCounts(shape != null ? shape.Count : width * height, s, rng);
 
             // Mixing rule: keep the best of a few shuffles. A board that cannot meet it fully (many monsters make a
             // tight cluster limit impossible) is still the least clumped one found, never a random one.
@@ -117,11 +119,24 @@ namespace VoidConverter.Core
         {
             violations = 0;
             var positions = new List<(int x, int y)>();
-            for (int x = 0; x < width; x++) for (int y = 0; y < height; y++) positions.Add((x, y));
-            Shuffle(positions, rng);
-
-            var taken = new bool[width, height];
+            var shape = s.Shape;
             var types = new CellType[width, height];
+            var taken = new bool[width, height];
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    // A hole is Empty and taken, so nothing is placed there and the mixing never moves it.
+                    if (shape != null && !shape.Has(x, y))
+                    {
+                        types[x, y] = CellType.Empty;
+                        taken[x, y] = true;
+                        continue;
+                    }
+                    positions.Add((x, y));
+                }
+            }
+            Shuffle(positions, rng);
 
             // 1) Void cells, kept apart.
             int voidSpacing = tier >= 2 ? 1 : Math.Max(s.VoidMinSpacing, 1);
@@ -168,7 +183,7 @@ namespace VoidConverter.Core
             }
 
             // 4) Mixing rule: shuffle non-void cells until no kind clumps (see GridSettings.MaxCluster).
-            if (tier == 0 && s.MaxCluster > 0) violations = Mix(types, width, height, s.MaxCluster, s.MaxMonsterCluster > 0 ? s.MaxMonsterCluster : s.MaxCluster, rng);
+            if (tier == 0 && s.MaxCluster > 0) violations = Mix(types, width, height, s.MaxCluster, s.MaxMonsterCluster > 0 ? s.MaxMonsterCluster : s.MaxCluster, rng, shape);
 
             if (tier == 0 && s.MaxCluster <= 0 && s.MonsterMaxCluster > 0 && LargestMonsterCluster(types, width, height) > s.MonsterMaxCluster) return null;
             return types;
@@ -176,7 +191,7 @@ namespace VoidConverter.Core
 
         // Hill climbing: swap two non-void cells of different kinds and keep the swap if the board is no worse.
         // Returns the violations left (0 = the board follows every rule).
-        static int Mix(CellType[,] types, int width, int height, int maxCluster, int maxMonsterCluster, Random rng)
+        static int Mix(CellType[,] types, int width, int height, int maxCluster, int maxMonsterCluster, Random rng, BoardShape shape)
         {
             int violations = Violations(types, width, height, maxCluster, maxMonsterCluster);
             for (int step = 0; step < 600 && violations > 0; step++)
@@ -185,6 +200,8 @@ namespace VoidConverter.Core
                 var a = types[x1, y1];
                 var b = types[x2, y2];
                 if (a == b || a == CellType.Void || b == CellType.Void) continue;
+                // Holes stay where the shape put them.
+                if (shape != null && (!shape.Has(x1, y1) || !shape.Has(x2, y2))) continue;
                 types[x1, y1] = b;
                 types[x2, y2] = a;
                 int next = Violations(types, width, height, maxCluster, maxMonsterCluster);

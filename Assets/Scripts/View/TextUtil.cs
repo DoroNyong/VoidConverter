@@ -106,21 +106,10 @@ namespace VoidConverter.View
             go.transform.localPosition = localPos;
 
             var font = CurrentFont;
-            // The pixel font only looks right at multiples of its pixel size: snap the size and give the difference
-            // to characterSize, so the text keeps the world size it was asked for.
-            if (font == pixelFont)
-            {
-                int snapped = Mathf.Max(PixelFontSize, Mathf.RoundToInt(fontSize / (float)PixelFontSize) * PixelFontSize);
-                characterSize *= fontSize / (float)snapped;
-                fontSize = snapped;
-            }
-            // No text smaller than MinTextScale (2026-11-17: item lists, descriptions and hints were too small to read).
-            characterSize = Mathf.Max(characterSize, MinTextScale / fontSize);
             var tm = go.AddComponent<TextMesh>();
             tm.font = font;
             tm.text = text;
-            tm.fontSize = fontSize;
-            tm.characterSize = characterSize;
+            SetSize(tm, fontSize, characterSize);
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
             tm.color = color;
@@ -130,6 +119,25 @@ namespace VoidConverter.View
             renderer.sortingOrder = order;
             meshes.Add(tm);
             return tm;
+        }
+
+        /// <summary>
+        /// Sets the size of a text made by AddText, with the same rules: the pixel font is snapped to multiples of its
+        /// pixel size (the difference goes to characterSize, so the world size stays as asked), and nothing is smaller
+        /// than MinTextScale. For texts that are reused with another size (the pooled board labels in GridView).
+        /// </summary>
+        public static void SetSize(TextMesh tm, int fontSize, float characterSize)
+        {
+            if (pixelFont != null && tm.font == pixelFont)
+            {
+                int snapped = Mathf.Max(PixelFontSize, Mathf.RoundToInt(fontSize / (float)PixelFontSize) * PixelFontSize);
+                characterSize *= fontSize / (float)snapped;
+                fontSize = snapped;
+            }
+            // No text smaller than MinTextScale (2026-11-17: item lists, descriptions and hints were too small to read).
+            characterSize = Mathf.Max(characterSize, MinTextScale / fontSize);
+            tm.fontSize = fontSize;
+            tm.characterSize = characterSize;
         }
 
         /// <summary>Gives every text the font of the current language (after the language setting changed).</summary>

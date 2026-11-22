@@ -444,12 +444,16 @@ namespace VoidConverter.Game
 
         void StartRound()
         {
-            Grid = new Grid(config.gridWidth, config.gridHeight)
+            var shape = BoardShapeFor(Stage);
+            Grid = new Grid(shape?.Width ?? config.gridWidth, shape?.Height ?? config.gridHeight)
             {
                 AllowOverlap = config.clearAllRule || config.pickOneRule,
                 BlockCovered = config.pickOneRule && config.coveredCellsBlock,
             };
-            Grid.Generate(config.ToGridSettings(Stage), rng);
+            var gridSettings = config.ToGridSettings(Stage);
+            gridSettings.Shape = shape;
+            Grid.Generate(gridSettings, rng);
+            AddFloorGimmicks(Grid);
             if (CurrentStage == StageType.Boss) Grid.PlaceStrongMonsters(config.bossStrongMonsterCount, config.bossStrongMonsterPower, rng);
             if (CurrentStage == StageType.Boss && config.pickOneRule && config.bossZoneEnabled)
             {
@@ -466,6 +470,28 @@ namespace VoidConverter.Game
             RoundGold = 0;
             RoundOver = false;
             RerollsLeft = config.rerollsPerRound;
+        }
+
+        // ---- Board shapes and breaking floor (2026-11-22, idea 34): hooks only, no rule decided yet ----
+
+        /// <summary>
+        /// Test override for the next rounds' board shape (null = the stage's own). Set from a test or the console;
+        /// never saved.
+        /// </summary>
+        public BoardShape ShapeOverride { get; set; }
+
+        /// <summary>
+        /// The board shape of a stage (null = the full gridWidth x gridHeight rectangle). Every stage uses the full
+        /// board for now; which stage gets which shape is decided when maps are added.
+        /// </summary>
+        BoardShape BoardShapeFor(int stage) => ShapeOverride;
+
+        /// <summary>
+        /// The floor gimmicks of the round that just started (see IFloorGimmick). None for now; a boss pattern or a
+        /// monster that cracks the floor is added here when it is decided.
+        /// </summary>
+        void AddFloorGimmicks(Grid grid)
+        {
         }
 
         /// <summary>
@@ -705,6 +731,7 @@ namespace VoidConverter.Game
             Grid.RerollVoidPower(Player, voidSettings, rng);
             // Spread voids that survived this turn contaminate their neighbours.
             if (!Player.IsDead) Grid.SpreadContamination(rng);
+            Grid.AdvanceFloor(rng);
             // The longer the player takes to hold out in the boss stage, the stronger the monsters left on the board.
             if (CurrentStage == StageType.Boss && !Player.IsDead) Grid.GrowMonsters(config.bossMonsterGrowth);
 
@@ -834,6 +861,9 @@ namespace VoidConverter.Game
                     Zone.MoveToward(fx, fy);
                 }
             }
+
+            // Floor: cells cracked before this placement break now, then the gimmicks crack new ones (idea 34).
+            Grid.AdvanceFloor(rng);
 
             PlacementsUsed++;
             // The boss's gimmick (the danger zone) is gone once the minimum is placed: from then on the board is
